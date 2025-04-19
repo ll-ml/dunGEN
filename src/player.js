@@ -15,9 +15,81 @@ export class Player extends DungeonObject {
         height: 1.0,
         scale: 11
        }); // Load the player in. 
-    // Store the desired position separately
-    this.desiredPosition = this.coords.clone();
+    this.path = [];
     this.inventory = [];
+  }
+
+  computePath(dest, tiles) {
+    const dirs = [
+      new THREE.Vector2(1, 0), 
+      new THREE.Vector2(-1, 0),
+      new THREE.Vector2(0, 1), 
+      new THREE.Vector2(0, -1)
+    ];
+
+    const rows = tiles.length, cols = tiles[0].length;
+
+    const dist = Array(rows).fill().map(() => Array(cols).fill(Infinity));
+    const prev = Array(rows).fill().map(() => Array(cols).fill(null));
+
+    const pq = [];
+    const start = this.coords.clone();
+    dist[start.y][start.x] = 0; // logic is in 2D
+    pq.push({pos: start, d: 0});
+
+    while (pq.length) {
+      pq.sort((a, b) => a.d - b.d); // Need this for priority queue
+      const { pos, d: curD } = pq.shift();
+
+      if (pos.equals(dest)) break;
+
+      for (const dir of dirs) {
+        const nxt = pos.clone().add(dir);
+        if (
+          nxt.x < 0 || nxt.y < 0 ||
+          nxt.x >= cols || nxt.y >= rows || 
+          !this.canWalk(tiles[nxt.y][nxt.x])
+        ) continue;
+
+        const nd = curD + 1;
+        if (nd < dist[nxt.y][nxt.x]) {
+          dist[nxt.y][nxt.x] = nd;
+          prev[nxt.y][nxt.x] = pos;
+          pq.push({ pos: nxt, d: nd});
+        }
+      }
+    }
+
+    const path = []; 
+    let cur = dest.clone(); 
+    if (!prev[cur.y][cur.x] && !cur.equals(start)) {
+      return []; // no path found
+    }
+
+    while (!cur.equals(start)) {
+      path.push(cur.clone());
+      cur = prev[cur.y][cur.x];
+    }
+    path.reverse();
+    return path;
+  }
+
+  moveTo(dest, tiles) {
+    this.path = this.computePath(dest, tiles);
+    console.log('  path is Array?', Array.isArray(this.path));      // must be true
+    console.log('  path.length=', this.path.length);                // must be > 0
+    console.log('  path entries:', this.path.map(v=>`${v.x},${v.y}`));
+  }
+  
+
+  updatePathStep() {
+    if (!this.path || this.path.length === 0) {
+      return // also play idle if need be
+    }
+
+    this.coords.set(next.x, next.y);
+    this.updatePosition();
+    // playaction(walk)
   }
 
   /**
