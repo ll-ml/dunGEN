@@ -4,8 +4,17 @@ import { InventoryItem, TileType } from './types.js';
 import { Enemy } from './enemy.js';
 
 export class Player extends DungeonObject {
-  constructor(x, y) {
-    super('./tile_0085.png', x, y); // Load the player texture
+   /**
+   * @param {number} startX  grid‑column
+   * @param {number} startZ  grid‑row
+   */
+  constructor(startX, startZ) {
+    super('./public/character-human.glb',
+       startX, 
+       startZ, {
+        height: 1.0,
+        scale: 11
+       }); // Load the player in. 
     // Store the desired position separately
     this.desiredPosition = this.coords.clone();
     this.inventory = [];

@@ -1,8 +1,6 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { Dungeon } from './dungeon.js';
 import { TickManager } from './tickManager.js';
-import { materialOpacity } from 'three/tsl';
 
 
 const WIDTH = 40;   // columns
@@ -100,12 +98,15 @@ document.body.appendChild(renderer.domElement);
 
 const dungeon = new Dungeon(WIDTH, HEIGHT);
 
-dungeon.generateDungeon();
+await dungeon.generateDungeon();
 dungeon.loadModelMap().then((modelMap) => {
   buildDungeonWithModels(modelMap);
   addDebugObjects();
 });
-dungeon.showCurrentState();
+
+await Promise.all(
+  dungeon.sparseMatrix.map(obj => obj._loadPromise)
+);
 
 
 function animate() {
@@ -187,6 +188,16 @@ function addDebugObjects() {
   // Optionally, scale it if required (or remove the scaling if too large)
   debugSphere.scale.set(1, 1, 1);
   scene.add(debugSphere);
+
+  dungeon.sparseMatrix.forEach(obj => {
+    if (obj.model) {
+      // actually put the player/enemy into the scene
+      scene.add(obj.model);
+    }
+  });
+
+  const playerCoods = dungeon.sparseMatrix[0].coords;
+  target = playerCoods;
 }
 /*
 

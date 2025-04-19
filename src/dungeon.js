@@ -4,7 +4,7 @@ import {TileType, Room, Pool } from './types.js'
 import { Player } from './player.js'
 import { Enemy } from './enemy.js';
 
-const TILE_SIZE = 16; // TODO: implment dynamic resizing
+//const TILE_SIZE = 16;  TODO: implment dynamic resizing
 
 export class Dungeon {
     constructor(width, height) {
@@ -15,7 +15,7 @@ export class Dungeon {
         this.dungeonRooms = [];
         this.statusMessages = [];
 
-        this.materialMap = this.loadMaterialMap();
+        //this.materialMap = this.loadMaterialMap();
     }
 
     loadModelMap() {
@@ -50,6 +50,7 @@ export class Dungeon {
         ]).then(() => modelMap);
     }
 
+    // DEAD CODE
     loadMaterialMap() {
 
         const textureLoader = new THREE.TextureLoader();
@@ -310,7 +311,7 @@ export class Dungeon {
         }
     }
 
-    spawnPlayer() {
+    async spawnPlayer() {
         if (this.dungeonRooms.length === 0) {
             console.warn("ERROR: attempted to spawn player with no rooms in dungeon!");
             return;
@@ -321,10 +322,10 @@ export class Dungeon {
         const room = this.dungeonRooms[roomIndex];
 
         const px = this.randInt(room.x + 1, room.x + room.width - 2);
-        const py = this.randInt(room.y + 1, room.y + room.height - 2)
+        const pz = this.randInt(room.y + 1, room.y + room.height - 2)
 
-        const player = new Player(px, py);
-        this.sparseMatrix.push(player);
+        const player = new Player(px, pz);
+        this.sparseMatrix.push(player); // just push them on the sparse matrix
     }
 
     spawnEnemies() {
@@ -425,7 +426,7 @@ export class Dungeon {
 
 
 
-    generateDungeon() {
+    async generateDungeon() {
         this.denseMatrix = this.createEmptyMatrix();
         this.sparseMatrix = [];
         this.dungeonRooms = [];
@@ -440,7 +441,6 @@ export class Dungeon {
         this.spawnPools();
 
 
-        //this.spawnPlayer();
-        //this.spawnEnemies();
+        await this.spawnPlayer();
     }
 }

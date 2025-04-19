@@ -1,42 +1,95 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
-const TILE_SIZE = 16; // TODO: Make sure its ok
+const TILE_SIZE = 11; // TODO: Make sure its ok
 const WIDTH = 40;   // columns
 const HEIGHT = 30;  // rows
 
+const offsetX = -(WIDTH * TILE_SIZE) / 2;
+const offsetZ = -(HEIGHT * TILE_SIZE) / 2; // Z is depth, Y held constant
+
 export class DungeonObject {
-     /**
-   * @param {THREE.Object3D} baseObject  A loaded GLTF scene or a Mesh you want to reuse.
-   * @param {number} gridX               Column index in the dungeon grid.
-   * @param {number} gridY               Row index in the dungeon grid.
-   * @param {THREE.Vector3} worldOffset  An offset to center or translate the entire dungeon.
-   * @param {number} scale               Uniform scale factor for the object.
+    //Loader and the cache of all previously loaded models
+    static loader = new GLTFLoader();
+    static modelCache = {};
+ /**
+   * @param {string} modelPath   URL or relative path to your .glb
+   * @param {number} gridX              - column index (0..WIDTH-1)
+   * @param {number} gridZ              - row    index (0..HEIGHT-1)
+   * @param {Object} [opts]
+   * @param {number} [opts.height=0]    - world‑Y, e.g. floor sits at 0
+   * @param {number} [opts.scale=1]     - uniform scale for the clone
    */
-    constructor(baseObject, gridX, gridY, worldOffset = new THREE.Vector3(), scale = 10) {
-        this.mesh = baseObject.clone(true);
-        this.mesh.scale.set(scale, scale, scale);
+    constructor(modelPath, gridX, gridZ, opts ={}) {
+        this.modelPath = modelPath;
+        this.coords = new THREE.Vector2(gridX, gridZ);
+        this.height = opts.height ?? 1; 
+        this.scale = opts.scale ?? 10;
+        this.id = opts.id ?? "default"
+        this.model = null;
 
-        this.grid = new THREE.Vector2(gridX, gridY);
-        this.worldOffset = worldOffset.clone();
-        this.updateMeshPosition();
+        this._loadPromise = this._loadAndSetup();
     }
 
-    updateMeshPosition() {
-        const screenWidth = window.innerWidth;
-        const screenHeight = window.innerHeight;
+    _loadAndSetup() {
+        let loadPromise = DungeonObject.modelCache[this.modelPath];
+        if (!loadPromise) {
+          loadPromise = new Promise((resolve, reject) => {
+            DungeonObject.loader.load(
+              this.modelPath,
+              gltf => resolve(gltf),
+              undefined,
+              err  => reject(err)
+            );
+          });
+          DungeonObject.modelCache[this.modelPath] = loadPromise;
+        }
+      
+        return loadPromise.then((gltf) => {
+          console.log('Loaded GLTF', this.modelPath, gltf);
+          const sceneRoot = gltf.scene[0] || gltf.scenes?.[0];
+          if (!sceneRoot) {
+            throw new Error(`GLTF had no scene: ${this.modelPath}`);
+          }
+          //this.model = sceneRoot.clone(true);
+          this.model = SkeletonUtils.clone(sceneRoot);
+          this.model.scale.setScalar(this.scale);
+          this.updatePosition();
+      
+          // debug bounding box
+          const bbox = new THREE.Box3().setFromObject(this.model);
+      
+          return this.model;
+        });
+      }
 
-        const dungeonPixelWidth = WIDTH * TILE_SIZE;
-        const dungeonPixelHeight = HEIGHT * TILE_SIZE;
+    updatePosition() {
+        if (!this.model) return;
 
-        const offsetX = (screenWidth - dungeonPixelWidth) / 2;
-        const offsetY = (screenHeight - dungeonPixelHeight) / 2;
+        const wx = offsetX + this.coords.x * TILE_SIZE + TILE_SIZE / 2;
+        const wy = this.height;
+        const wz = offsetZ  + this.coords.y * TILE_SIZE + TILE_SIZE / 2;
 
-        this.mesh.position.x = offsetX + this.coords.x * TILE_SIZE + TILE_SIZE / 2;
-        this.mesh.position.y = screenHeight - (offsetY + this.coords.y * TILE_SIZE + TILE_SIZE / 2);
+        this.model.position.set(wx, wy, wz);
     }
 
-    setPosition(x, y) {
-        this.coords.set(x, y);
-        this.updateMeshPosition();
+    setPosition(x, z, height = 0) {
+     this.coords.x = x;
+     this.coords.z = z; 
+     this.height = height;
+
+     return this._loadPromise.then(() => {
+        this.updatePosition();
+        return this.model;
+     });
+    }
+
+    addTo(scene) {
+        return this._loadPromise.then((model) => {
+            scene.add(model);
+            return model;
+
+        });
     }
 }
