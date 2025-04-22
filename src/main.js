@@ -241,41 +241,35 @@ renderer.domElement.addEventListener('click', e => {
     !player.canWalk(dungeon.denseMatrix[gridZ][gridX])
   ) return;
 
-  // actually path over to new spot rather than teleport
-  player.moveTo(new THREE.Vector2(gridX, gridZ), dungeon.denseMatrix);
-});
-
-tickMager.onTick(() => {
-  player.updatePathStep();
+  // kick off pathfinding
+  player.moveTo(new THREE.Vector2(gridX, gridZ),
+                dungeon.denseMatrix);
 });
 
 function animate() {
   requestAnimationFrame(animate);
 
-  // 1) compute delta
+  // 1) compute delta in seconds
   const deltaSeconds = clock.getDelta();
-  const deltaMS      = deltaSeconds * 1000;
 
-  // 2) drive tick‑based logic
-  tickMager.update(deltaMS);
+  // 2) smooth continuous movement
+  player.updateMovement(deltaSeconds);
 
-  // 3) advance any mixers for smooth bone animation
+  // 3) advance any mixers (bones, etc)
   player.mixer?.update(deltaSeconds);
   dungeon.sparseMatrix.forEach(obj => obj.mixer?.update(deltaSeconds));
 
-  if (player.model) {
-    target.copy(player.model.position);
-  }
-
-  // 4) update camera
-  const sinTheta = Math.sin(theta);
-  const camX = target.x + radius * sinTheta * Math.cos(phi);
-  const camZ = target.z + radius * sinTheta * Math.sin(phi);
-  const camY = target.y + radius * Math.cos(theta);
+  // 4) update camera to follow
+  if (player.model) target.copy(player.model.position);
+  const sinT = Math.sin(theta);
+  const camX = target.x + radius*sinT*Math.cos(phi);
+  const camZ = target.z + radius*sinT*Math.sin(phi);
+  const camY = target.y + radius*Math.cos(theta);
   perspCam.position.set(camX, camY, camZ);
   perspCam.lookAt(target);
 
   // 5) finally render
   renderer.render(scene, perspCam);
 }
+
 animate();

@@ -3,6 +3,12 @@ import { DungeonObject } from './dungeonObject.js';
 import { InventoryItem, TileType } from './types.js';
 import { Enemy } from './enemy.js';
 
+const TILE_SIZE = 11;
+const WIDTH = 40;
+const HEIGHT = 30;
+const dungeonPixelWidth = WIDTH * TILE_SIZE;
+const dungeonPixelHeight = HEIGHT * TILE_SIZE;
+
 export class Player extends DungeonObject {
    /**
    * @param {number} startX  grid‑column
@@ -16,6 +22,8 @@ export class Player extends DungeonObject {
         scale: 11
        }); // Load the player in. 
     this.path = [];
+    this._targetWorldPos = null; // Type THREE.Vector3
+    this.moveSpeed = TILE_SIZE * 4;
     this.inventory = [];
   }
 
@@ -100,9 +108,54 @@ export class Player extends DungeonObject {
 
   moveTo(dest, tiles) {
     this.path = this.computePath(dest, tiles);
+    this._advanceTarget();
     console.log('  path is Array?', Array.isArray(this.path));      // must be true
     console.log('  path.length=', this.path.length);                // must be > 0
     console.log('  path entries:', this.path.map(v=>`${v.x},${v.y}`));
+  }
+
+  _advanceTarget() {
+    if (this.path.length === 0) {
+      this._targetWorldPos = null;
+      return;
+    }
+
+    const next = this.path[0];
+
+    //compute tiles world center 
+
+    this._targetWorldPos = new THREE.Vector3(
+      -dungeonPixelWidth/2 + next.x * TILE_SIZE + TILE_SIZE / 2,
+      this.height,
+      -dungeonPixelHeight/2 + next.y * TILE_SIZE + TILE_SIZE / 2
+    );
+
+    this.model.lookAt(
+      this._targetWorldPos.x,
+      this.model.position.y,
+      this._targetWorldPos.z
+    );
+  }
+
+  updateMovement(deltaSeconds) {
+    if (!this._targetWorldPos) return; 
+
+    const dir = this._targetWorldPos.clone().sub(this.model.position);
+    const dist = dir.length();
+    const step = this.moveSpeed * deltaSeconds;
+
+    if (dist <= step) {
+      this.model.position.copy(this._targetWorldPos);
+
+      const reached = this.path.shift();
+      this.coords.set(reached.x, reached.y);
+      this.updatePosition();
+
+      this._advanceTarget();
+    } else {
+      dir.normalize();
+      this.model.position.add(dir.multiplyScalar(step));
+    }
   }
   
 
