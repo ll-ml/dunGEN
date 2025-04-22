@@ -9,14 +9,10 @@ const WIDTH = 40;   // columns
 const HEIGHT = 30;  // rows
 const TILE_SIZE = 11;
 
-const screenWidth = window.innerWidth;
-const screenHeight = window.innerHeight;
 
 const dungeonPixelWidth = WIDTH * TILE_SIZE;
 const dungeonPixelHeight = HEIGHT * TILE_SIZE;
 
-const pixelWidth = TILE_SIZE * WIDTH;
-const pixelHeight = TILE_SIZE * HEIGHT;
 
 
 const raycaster = new THREE.Raycaster();
@@ -29,27 +25,6 @@ const perspCam = new THREE.PerspectiveCamera(
   0.1,
   1000
 );
-
-const halfH = dungeonPixelHeight / 2;
-const aspect = window.innerWidth / window.innerHeight;
-const halfW = halfH * aspect;
-
-const orthoCam = new THREE.OrthographicCamera(
-  -halfW,  halfW,
-   halfH, -halfH,
-   1, 1000     // near/far
-);
-
-//looking down:
-orthoCam.position.set(0, 200, 0);
-
-// point along –Z, not +Y
-orthoCam.up.set(0, 0, -1);
-
-// Now look at the center of the floor
-orthoCam.lookAt(0, 0, 0);
-orthoCam.updateProjectionMatrix();
-
 
 const target = new THREE.Vector3(0, 0, 0);
 
@@ -175,6 +150,7 @@ function buildDungeonWithModels(modelMap) {
         scene.add(modelInstance);
       }
 
+      /*
       // Now make an invisible plane at the same spot for clicks:
       const planeGeo  = new THREE.PlaneGeometry(TILE_SIZE, TILE_SIZE);
       const planeMat = new THREE.MeshBasicMaterial({
@@ -195,6 +171,7 @@ function buildDungeonWithModels(modelMap) {
       planeMesh.userData = { gridX: x, gridZ: y };
       scene.add(planeMesh);
       clickables.push(planeMesh);
+      */
     }
   }
 }
@@ -235,97 +212,41 @@ function addDebugObjects() {
   //target = playerCoods;
 }
 
-const playerObj = dungeon.sparseMatrix[0];
+const player = dungeon.sparseMatrix[0];
 
-
-/*
-window.addEventListener('click', e => {
-  mouse.x = ( e.clientX / innerWidth ) * 2 - 1;
-  mouse.y = ( e.clientY / innerHeight) * 2 - 1;
-  raycaster.setFromCamera(mouse, perspCam);
-  let gridX = 0;
-  let gridZ = 0;
-
-  const hitsOnPlayer = raycaster.intersectObject(playerObj.model, true);
-  if (hitsOnPlayer.length > 0) {
-    gridX = playerObj.coords.x; 
-    gridZ = playerObj.coords.y;
-    console.log(`Clicked on player so stay at ${gridX}, ${gridZ}`);
-    return;
-  }
-  console.log(playerObj.coords)
-
-  const worldPt = new THREE.Vector3();
-  if (!raycaster.ray.intersectPlane(ground, worldPt)) return;
-
-  const offsetX = -dungeonPixelWidth/2;
-  const offsetZ = -dungeonPixelHeight/2;
-
-  const fx = (worldPt.x - offsetX) / TILE_SIZE;
-  const fz = (worldPt.z -offsetZ) / TILE_SIZE; 
-  gridX = Math.floor(fx + 0.5);
-  gridZ = Math.floor(fz + 0.5);
-
-  console.log('clicked tile:', gridX, gridZ);
-  
-  const newPath = playerObj.computePath(
-    new THREE.Vector2(gridX, gridZ), 
-    dungeon.denseMatrix
-  );
-
-  if (newPath.length === 0) {
-    console.warn(`No valid path to (${gridX}, ${gridZ})- maybe it's blocked.`);
-  } else {
-    console.log(`Starting from ${playerObj.coords.x}, ${playerObj.coords.y}`);
-    console.log(newPath);
-  }
-
-  if (
-    gridX < 0 || gridZ < 0|| gridX >= WIDTH|| gridZ >= HEIGHT ||
-    !playerObj.canWalk(dungeon.denseMatrix[gridZ][gridX])
-  ) return;
-  //playerObj.moveTo(new THREE.Vector2(gridX,gridZ), dungeon.denseMatrix);
-});
-*/
-// after you’ve defined `playerObj`, `raycaster`, `mouse`, `perspCam`, etc.
-// pre‑computed constants:
 const halfWpx = dungeonPixelWidth  / 2;
 const halfHpz = dungeonPixelHeight / 2;
 
-// reuse your existing raycaster, mouse, perspCam, ground, playerObj, etc.
 renderer.domElement.addEventListener('click', e => {
   // 1) NDC coords relative to canvas
   const rect = renderer.domElement.getBoundingClientRect();
-  mouse.x = ((e.clientX - rect.left)  / rect.width )  * 2 - 1;
-  mouse.y = -((e.clientY - rect.top)   / rect.height) * 2 + 1;
+  mouse.x = ((e.clientX - rect.left) / rect.width)*2 - 1;
+  mouse.y = -((e.clientY - rect.top) / rect.height)*2 + 1;
 
-  // 2) shoot that ray from your perspective camera
+  // 2) shoot that ray from your main (persp) camera
   raycaster.setFromCamera(mouse, perspCam);
 
-  // 3) intersect the ground plane at y=0
+  // 3) intersect with the y=0 ground plane
   const worldPt = new THREE.Vector3();
   if (!raycaster.ray.intersectPlane(ground, worldPt)) return;
 
-  // 4) shift origin by +half‑dungeon, then divide by TILE_SIZE
-  const gridX = Math.floor( (worldPt.x + halfWpx) / TILE_SIZE );
-  const gridZ = Math.floor( (worldPt.z + halfHpz) / TILE_SIZE );
+  // 4) convert world → grid
+  const gridX = Math.floor((worldPt.x + halfWpx) / TILE_SIZE);
+  const gridZ = Math.floor((worldPt.z + halfHpz) / TILE_SIZE);
 
-  console.log(`Clicked at world (${worldPt.x.toFixed(1)},${worldPt.z.toFixed(1)}) → tile [${gridX},${gridZ}]`);
-  console.log(`Player at ${playerObj.coords.x}`)
-
-  // 5) bounds‑check & teleport
+  // 5) bounds‑check & walkability
   if (
     gridX < 0 || gridZ < 0 ||
-    gridX >= WIDTH || gridZ >= HEIGHT
-  ) {
-    console.warn("Out of dungeon!");
-    return;
-  }
-  playerObj.setPosition(gridX, gridZ);
+    gridX >= WIDTH || gridZ >= HEIGHT ||
+    !player.canWalk(dungeon.denseMatrix[gridZ][gridX])
+  ) return;
+
+  // actually path over to new spot rather than teleport
+  player.moveTo(new THREE.Vector2(gridX, gridZ), dungeon.denseMatrix);
 });
 
 tickMager.onTick(() => {
-  playerObj.updatePathStep();
+  player.updatePathStep();
 });
 
 function animate() {
@@ -335,18 +256,18 @@ function animate() {
   const deltaSeconds = clock.getDelta();
   const deltaMS      = deltaSeconds * 1000;
 
-  // 2) drive your tick‑based logic
+  // 2) drive tick‑based logic
   tickMager.update(deltaMS);
 
   // 3) advance any mixers for smooth bone animation
-  playerObj.mixer?.update(deltaSeconds);
+  player.mixer?.update(deltaSeconds);
   dungeon.sparseMatrix.forEach(obj => obj.mixer?.update(deltaSeconds));
 
-  if (playerObj.model) {
-    target.copy(playerObj.model.position);
+  if (player.model) {
+    target.copy(player.model.position);
   }
 
-  // 4) update camera (your existing code)
+  // 4) update camera
   const sinTheta = Math.sin(theta);
   const camX = target.x + radius * sinTheta * Math.cos(phi);
   const camZ = target.z + radius * sinTheta * Math.sin(phi);
