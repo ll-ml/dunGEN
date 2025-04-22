@@ -75,14 +75,12 @@ export class DungeonObject {
     }
 
     setPosition(x, z, height = 0) {
-     this.coords.x = x;
-     this.coords.z = z; 
-     this.height = height;
-
-     return this._loadPromise.then(() => {
+      this.coords.set(x, z);
+      this.height = height;
+      return this._loadPromise.then(() => {
         this.updatePosition();
         return this.model;
-     });
+      })
     }
 
     addTo(scene) {

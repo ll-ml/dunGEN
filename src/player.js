@@ -21,58 +21,82 @@ export class Player extends DungeonObject {
 
   computePath(dest, tiles) {
     const dirs = [
-      new THREE.Vector2(1, 0), 
-      new THREE.Vector2(-1, 0),
-      new THREE.Vector2(0, 1), 
-      new THREE.Vector2(0, -1)
+      new THREE.Vector2( 1,  0),
+      new THREE.Vector2(-1,  0),
+      new THREE.Vector2( 0,  1),
+      new THREE.Vector2( 0, -1),
     ];
-
     const rows = tiles.length, cols = tiles[0].length;
-
+  
+    // Distance & back‑pointers
     const dist = Array(rows).fill().map(() => Array(cols).fill(Infinity));
     const prev = Array(rows).fill().map(() => Array(cols).fill(null));
-
+  
+    // Min‑queue as array
     const pq = [];
     const start = this.coords.clone();
-    dist[start.y][start.x] = 0; // logic is in 2D
-    pq.push({pos: start, d: 0});
-
+    dist[start.y][start.x] = 0;
+    pq.push({ pos: start.clone(), d: 0 });
+  
+    // Dijkstra’s loop
     while (pq.length) {
-      pq.sort((a, b) => a.d - b.d); // Need this for priority queue
+      pq.sort((a, b) => a.d - b.d);
       const { pos, d: curD } = pq.shift();
-
+  
+      // Once we’ve “reached” dest, stop searching
       if (pos.equals(dest)) break;
-
+  
       for (const dir of dirs) {
         const nxt = pos.clone().add(dir);
         if (
           nxt.x < 0 || nxt.y < 0 ||
-          nxt.x >= cols || nxt.y >= rows || 
+          nxt.x >= cols || nxt.y >= rows ||
           !this.canWalk(tiles[nxt.y][nxt.x])
         ) continue;
-
+  
         const nd = curD + 1;
         if (nd < dist[nxt.y][nxt.x]) {
           dist[nxt.y][nxt.x] = nd;
-          prev[nxt.y][nxt.x] = pos;
-          pq.push({ pos: nxt, d: nd});
+          prev[nxt.y][nxt.x] = pos.clone();  // store a clone
+          pq.push({ pos: nxt, d: nd });
         }
       }
     }
-
-    const path = []; 
-    let cur = dest.clone(); 
-    if (!prev[cur.y][cur.x] && !cur.equals(start)) {
-      return []; // no path found
+  
+    // Figure out where we actually ended up
+    let end = dest.clone();
+    if (!prev[end.y][end.x]) {
+      // dest was never reached — find nearest neighbor that was
+      let best = null, bestDist = Infinity;
+      for (const dir of dirs) {
+        const nb = end.clone().add(dir);
+        if (
+          nb.x < 0 || nb.y < 0 ||
+          nb.x >= cols || nb.y >= rows
+        ) continue;
+        if (dist[nb.y][nb.x] < bestDist) {
+          bestDist = dist[nb.y][nb.x];
+          best = nb.clone();
+        }
+      }
+      if (!best || bestDist === Infinity) {
+        // nowhere reachable
+        return [];
+      }
+      end = best;
     }
-
+  
+    // Back‑track to build the path
+    const path = [];
+    let cur = end.clone();
     while (!cur.equals(start)) {
       path.push(cur.clone());
       cur = prev[cur.y][cur.x];
+      if (!cur) break;  // safety
     }
-    path.reverse();
-    return path;
+    return path.reverse();
   }
+  
 
   moveTo(dest, tiles) {
     this.path = this.computePath(dest, tiles);
@@ -87,7 +111,9 @@ export class Player extends DungeonObject {
       return // also play idle if need be
     }
 
-    this.coords.set(next.x, next.y);
+    const nextTile = this.path.shift();
+
+    this.coords.set(nextTile.x, nextTile.y);
     this.updatePosition();
     // playaction(walk)
   }

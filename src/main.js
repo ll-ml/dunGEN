@@ -30,6 +30,27 @@ const perspCam = new THREE.PerspectiveCamera(
   1000
 );
 
+const halfH = dungeonPixelHeight / 2;
+const aspect = window.innerWidth / window.innerHeight;
+const halfW = halfH * aspect;
+
+const orthoCam = new THREE.OrthographicCamera(
+  -halfW,  halfW,
+   halfH, -halfH,
+   1, 1000     // near/far
+);
+
+//looking down:
+orthoCam.position.set(0, 200, 0);
+
+// point along –Z, not +Y
+orthoCam.up.set(0, 0, -1);
+
+// Now look at the center of the floor
+orthoCam.lookAt(0, 0, 0);
+orthoCam.updateProjectionMatrix();
+
+
 const target = new THREE.Vector3(0, 0, 0);
 
 // Spherical coordinates for the camera
@@ -41,6 +62,8 @@ let radius = 100;       // distance from the target
 let isMiddleMouseDown = false;
 let lastMouseX = 0;
 let lastMouseY = 0;
+
+const clickables = [];
 
 
 // Set up mousedown listener for the middle mouse button
@@ -66,9 +89,15 @@ window.addEventListener('keydown', (event) => {
     dungeon.loadModelMap().then((modelMap) => {
       buildDungeonWithModels(modelMap);
       addDebugObjects();
+      const playerObj = dungeon.sparseMatrix[0];
+      if (playerObj.model) {
+        target.copy(playerObj.model.position);
+      } else {
+        console.error("Could not readjust camera")
+      }
     });
   }
-})
+});
 
 // Update camera angles when moving the mouse (only if middle button is held)
 window.addEventListener("mousemove", (e) => {
@@ -124,31 +153,48 @@ window.addEventListener('resize', () => {
 });
 
 function buildDungeonWithModels(modelMap) {
-  while (scene.children.length) {
-    scene.remove(scene.children[0]);
-  }
+  // clear out both scene children _and_ clickables
+  while (scene.children.length) scene.remove(scene.children[0]);
+  clickables.length = 0;
 
   const offsetX = -dungeonPixelWidth / 2;
-  const offsetZ = -dungeonPixelHeight / 2;
+  const offsetZ = -dungeonPixelHeight/ 2;
 
   for (let y = 0; y < HEIGHT; y++) {
     for (let x = 0; x < WIDTH; x++) {
       const tile = dungeon.denseMatrix[y][x];
       const baseModel = modelMap[tile];
-
-      if (!baseModel) {
-        continue;
+      if (baseModel) {
+        const modelInstance = baseModel.clone();
+        modelInstance.position.set(
+          offsetX + x*TILE_SIZE + TILE_SIZE/2,
+          0,
+          offsetZ + y*TILE_SIZE + TILE_SIZE/2
+        );
+        modelInstance.scale.setScalar(11);
+        scene.add(modelInstance);
       }
 
-      const modelInstance = baseModel.clone();
-      modelInstance.position.set(
-        offsetX + x * TILE_SIZE + TILE_SIZE / 2,
-        0, // Y
-        offsetZ + y * TILE_SIZE + TILE_SIZE / 2
+      // Now make an invisible plane at the same spot for clicks:
+      const planeGeo  = new THREE.PlaneGeometry(TILE_SIZE, TILE_SIZE);
+      const planeMat = new THREE.MeshBasicMaterial({
+        color: 0x00ff00,
+        wireframe: true,
+        opacity: 0.25,
+        transparent: true
+      });
+      const planeMesh = new THREE.Mesh(planeGeo, planeMat);
+      // rotate X so it lies flat on the floor
+      planeMesh.rotation.x = -Math.PI/2;
+      planeMesh.position.set(
+        offsetX + x*TILE_SIZE + TILE_SIZE/2,
+        0.1,  // small Y offset to avoid z-fighting
+        offsetZ + y*TILE_SIZE + TILE_SIZE/2
       );
-      modelInstance.scale.set(11, 11, 11); // 11 seems to be them magick number
-
-      scene.add(modelInstance);
+      // store grid coords
+      planeMesh.userData = { gridX: x, gridZ: y };
+      scene.add(planeMesh);
+      clickables.push(planeMesh);
     }
   }
 }
@@ -191,10 +237,23 @@ function addDebugObjects() {
 
 const playerObj = dungeon.sparseMatrix[0];
 
+
+/*
 window.addEventListener('click', e => {
   mouse.x = ( e.clientX / innerWidth ) * 2 - 1;
   mouse.y = ( e.clientY / innerHeight) * 2 - 1;
   raycaster.setFromCamera(mouse, perspCam);
+  let gridX = 0;
+  let gridZ = 0;
+
+  const hitsOnPlayer = raycaster.intersectObject(playerObj.model, true);
+  if (hitsOnPlayer.length > 0) {
+    gridX = playerObj.coords.x; 
+    gridZ = playerObj.coords.y;
+    console.log(`Clicked on player so stay at ${gridX}, ${gridZ}`);
+    return;
+  }
+  console.log(playerObj.coords)
 
   const worldPt = new THREE.Vector3();
   if (!raycaster.ray.intersectPlane(ground, worldPt)) return;
@@ -202,22 +261,71 @@ window.addEventListener('click', e => {
   const offsetX = -dungeonPixelWidth/2;
   const offsetZ = -dungeonPixelHeight/2;
 
-  const gridX = Math.floor((worldPt.x - offsetX) / TILE_SIZE);
-  const gridZ = Math.floor((worldPt.z - offsetZ) / TILE_SIZE);
+  const fx = (worldPt.x - offsetX) / TILE_SIZE;
+  const fz = (worldPt.z -offsetZ) / TILE_SIZE; 
+  gridX = Math.floor(fx + 0.5);
+  gridZ = Math.floor(fz + 0.5);
 
   console.log('clicked tile:', gridX, gridZ);
+  
+  const newPath = playerObj.computePath(
+    new THREE.Vector2(gridX, gridZ), 
+    dungeon.denseMatrix
+  );
+
+  if (newPath.length === 0) {
+    console.warn(`No valid path to (${gridX}, ${gridZ})- maybe it's blocked.`);
+  } else {
+    console.log(`Starting from ${playerObj.coords.x}, ${playerObj.coords.y}`);
+    console.log(newPath);
+  }
 
   if (
-    gridX < 0||gridZ<0||gridX>=WIDTH||gridZ>=HEIGHT ||
+    gridX < 0 || gridZ < 0|| gridX >= WIDTH|| gridZ >= HEIGHT ||
     !playerObj.canWalk(dungeon.denseMatrix[gridZ][gridX])
   ) return;
-  playerObj.moveTo(new THREE.Vector2(gridX,gridZ), dungeon.denseMatrix);
+  //playerObj.moveTo(new THREE.Vector2(gridX,gridZ), dungeon.denseMatrix);
 });
+*/
+// after you’ve defined `playerObj`, `raycaster`, `mouse`, `perspCam`, etc.
+// pre‑computed constants:
+const halfWpx = dungeonPixelWidth  / 2;
+const halfHpz = dungeonPixelHeight / 2;
 
+// reuse your existing raycaster, mouse, perspCam, ground, playerObj, etc.
+renderer.domElement.addEventListener('click', e => {
+  // 1) NDC coords relative to canvas
+  const rect = renderer.domElement.getBoundingClientRect();
+  mouse.x = ((e.clientX - rect.left)  / rect.width )  * 2 - 1;
+  mouse.y = -((e.clientY - rect.top)   / rect.height) * 2 + 1;
+
+  // 2) shoot that ray from your perspective camera
+  raycaster.setFromCamera(mouse, perspCam);
+
+  // 3) intersect the ground plane at y=0
+  const worldPt = new THREE.Vector3();
+  if (!raycaster.ray.intersectPlane(ground, worldPt)) return;
+
+  // 4) shift origin by +half‑dungeon, then divide by TILE_SIZE
+  const gridX = Math.floor( (worldPt.x + halfWpx) / TILE_SIZE );
+  const gridZ = Math.floor( (worldPt.z + halfHpz) / TILE_SIZE );
+
+  console.log(`Clicked at world (${worldPt.x.toFixed(1)},${worldPt.z.toFixed(1)}) → tile [${gridX},${gridZ}]`);
+  console.log(`Player at ${playerObj.coords.x}`)
+
+  // 5) bounds‑check & teleport
+  if (
+    gridX < 0 || gridZ < 0 ||
+    gridX >= WIDTH || gridZ >= HEIGHT
+  ) {
+    console.warn("Out of dungeon!");
+    return;
+  }
+  playerObj.setPosition(gridX, gridZ);
+});
 
 tickMager.onTick(() => {
   playerObj.updatePathStep();
-  console.log("Tick");
 });
 
 function animate() {
@@ -233,6 +341,10 @@ function animate() {
   // 3) advance any mixers for smooth bone animation
   playerObj.mixer?.update(deltaSeconds);
   dungeon.sparseMatrix.forEach(obj => obj.mixer?.update(deltaSeconds));
+
+  if (playerObj.model) {
+    target.copy(playerObj.model.position);
+  }
 
   // 4) update camera (your existing code)
   const sinTheta = Math.sin(theta);
