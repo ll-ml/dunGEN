@@ -29,6 +29,8 @@ export class DungeonObject {
         this.id = opts.id ?? "default"
         this.model = null;
 
+        this.animations = [];
+
         this._loadPromise = this._loadAndSetup();
     }
 
@@ -48,6 +50,7 @@ export class DungeonObject {
       
         return loadPromise.then((gltf) => {
           console.log('Loaded GLTF', this.modelPath, gltf);
+          this.animations = gltf.animations || [];
           const sceneRoot = gltf.scene[0] || gltf.scenes?.[0];
           if (!sceneRoot) {
             throw new Error(`GLTF had no scene: ${this.modelPath}`);

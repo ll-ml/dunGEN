@@ -2,26 +2,177 @@ import * as THREE from 'three';
 import { TileType } from './types.js';
 import { DungeonObject } from './dungeonObject.js';
 
+const TILE_SIZE = 11;
+const WIDTH      = 40;   // match your main.js
+const HEIGHT     = 30;
+const dungeonPixelWidth  = WIDTH  * TILE_SIZE;
+const dungeonPixelHeight = HEIGHT * TILE_SIZE;
+
 export class Enemy extends DungeonObject {
-  /**
-   * @param {string} id - Unique identifier
-   * @param {number} hp - Hit points
-   * @param {number} x - Starting x tile coord
-   * @param {number} y - Startin y tile coord
-   * @param {number} atk - Attack power
-   * @param {number} agroRange - Range where enemy will attack player
-   */
-  constructor(id, hp, x, y, atk, agroRange = 10) {
-    const textureMap = {
-      cyclopes: './tile_0109.png',
-      spider: './tile_0122.png',
-    };
-    const texturePath = textureMap[id.toLocaleLowerCase()] || '/tile_0019.png';
-    super(texturePath, x, y);
+  constructor(glbPath, id, hp, x, y, atk, agroRange = 10) {
+    const glbModelPath = glbPath;
+    super(glbModelPath, x, y,
+      {
+        scale: 11,
+        height: 0.0
+      }
+    );
     this.id = id;
-    this.hp = hp;
+    this.hp = hp; 
     this.attackPower = atk;
-    this.agroRange = agroRange;
+    this.agroRange = agroRange; // This should do more
+
+    this.path = [];
+    this._targetWorldPos = null;
+    this.idleSpeed = TILE_SIZE * 0.75;
+    this.chaseSpeed = TILE_SIZE * 2
+    this.moveSpeed = this.idleSpeed; // slower then the player
+
+    // 3D Movement
+    this.mixer = null;
+    this.actions = {};
+    this.currentAction = null;
+
+    this._loadPromise.then(model => this._initAnimations(model));
+  }
+
+  _initAnimations(model) {
+    this.mixer = new THREE.AnimationMixer(model);
+
+    const find = name => (this.animations || []).find(c => c.name === name);
+    const idleClip = find('idle');
+    const walkClip = find('walk');
+    if (!idleClip || !walkClip) return console.warn('No idle or walk animatons found for: ', this.id);
+
+    this.actions.idle = this.mixer.clipAction(idleClip);
+    this.actions.walk = this.mixer.clipAction(walkClip);
+    this.currentAction = this.actions.idle;
+    this.currentAction.play();
+  }
+
+  /**
+ * Pick one random, walkable neighbor of `from`.
+ */
+_idleStepFrom(from, tiles) {
+  const rows = tiles.length, cols = tiles[0].length;
+  const dirs = [
+    new THREE.Vector2( 1,  0),
+    new THREE.Vector2(-1,  0),
+    new THREE.Vector2( 0,  1),
+    new THREE.Vector2( 0, -1),
+  ];
+  // shuffle dirs
+  for (let i = dirs.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [dirs[i], dirs[j]] = [dirs[j], dirs[i]];
+  }
+  for (const d of dirs) {
+    const cand = from.clone().add(d);
+    if (
+      cand.x >= 0 && cand.y >= 0 &&
+      cand.x < cols  && cand.y < rows &&
+      this.canWalk(tiles[cand.y][cand.x])
+    ) return cand;
+  }
+  // no neighbor? stay put
+  return from.clone();
+}
+
+/**
+ * Called once per AI‐tick (e.g. every 0.5s).  If player is in range,
+ * path one step toward them.  Otherwise, if we’ve finished our
+ * last “wander” path, build a brand‐new 4–10‐step random route.
+ */
+think(playerCoords, tiles) {
+  const manhattan =
+    Math.abs(this.coords.x - playerCoords.x) +
+    Math.abs(this.coords.y - playerCoords.y);
+
+  if (manhattan <= this.agroRange) {
+    // chase
+    this.moveSpeed = this.chaseSpeed;
+    const step = this.tryMove(playerCoords, tiles);
+    if (!step.equals(this.coords)) {
+      this.path = [ step ];
+      this._advanceTarget();
+      this._setAction('walk');
+    }
+  } else {
+    this.moveSpeed = this.idleSpeed;
+    // if we still have leftover wander‐steps, keep going
+    if (this.path.length > 0) return;
+
+    // otherwise pick a new random patrol length
+    const wanderLen = 4 + Math.floor(Math.random() * 7); // 4..10
+    const patrol = [];
+    let cursor = this.coords.clone();
+
+    for (let i = 0; i < wanderLen; i++) {
+      const next = this._idleStepFrom(cursor, tiles);
+      if (next.equals(cursor)) break;  // no further movement
+      patrol.push(next);
+      cursor = next;
+    }
+
+    if (patrol.length) {
+      this.path = patrol;
+      this._advanceTarget();
+      this._setAction('walk');
+    } else {
+      // couldn't generate a wander path → stay idle
+      this._setAction('idle');
+    }
+  }
+}
+
+  _advanceTarget() {
+    if (this.path.length === 0) {
+      this._targetWorldPos = null;
+      return;
+    }
+
+    const next = this.path[0];
+    this._targetWorldPos = new THREE.Vector3(
+      -dungeonPixelWidth/2 + next.x * TILE_SIZE + TILE_SIZE/2,
+      this.height, 
+      -dungeonPixelHeight/2+ next.y * TILE_SIZE + TILE_SIZE/2
+    );
+
+    this.model.lookAt(
+      this._targetWorldPos.x,
+      this.model.position.y,
+      this._targetWorldPos.z
+    );
+  }
+
+  updateMovement(deltaSeconds) {
+    if (!this._targetWorldPos) return;
+
+    const dir = this._targetWorldPos.clone().sub(this.model.position);
+    const dist = dir.length();
+    const step = this.moveSpeed * deltaSeconds;
+
+    if (dist <= step) {
+      this.model.position.copy(this._targetWorldPos);
+      const reached = this.path.shift();
+      this.coords.set(reached.x, reached.y);
+      this.updatePosition();
+      this._advanceTarget();
+      if (!this._targetWorldPos) this._setAction('idle');
+    } else {
+      dir.normalize();
+      this.model.position.add(dir.multiplyScalar(step));
+
+    }
+  }
+
+  _setAction(name) {
+    const next = this.actions[name];
+    if (next && this.currentAction !== next) {
+      this.currentAction.fadeOut(0.2);
+      next.reset().fadeIn(0.2).play();
+      this.currentAction = next;
+    }
   }
 
   move(updatedPos) {

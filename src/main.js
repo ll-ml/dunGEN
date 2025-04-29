@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { Dungeon } from './dungeon.js';
 import { TickManager } from './tickManager.js';
+import { Enemy } from './enemy.js';
+import { TileType } from './types.js';
 
 const tickMager = new TickManager(600);
 const clock = new THREE.Clock();
@@ -37,9 +39,6 @@ let radius = 100;       // distance from the target
 let isMiddleMouseDown = false;
 let lastMouseX = 0;
 let lastMouseY = 0;
-
-const clickables = [];
-
 
 // Set up mousedown listener for the middle mouse button
 window.addEventListener("mousedown", (e) => {
@@ -130,7 +129,6 @@ window.addEventListener('resize', () => {
 function buildDungeonWithModels(modelMap) {
   // clear out both scene children _and_ clickables
   while (scene.children.length) scene.remove(scene.children[0]);
-  clickables.length = 0;
 
   const offsetX = -dungeonPixelWidth / 2;
   const offsetZ = -dungeonPixelHeight/ 2;
@@ -149,29 +147,6 @@ function buildDungeonWithModels(modelMap) {
         modelInstance.scale.setScalar(11);
         scene.add(modelInstance);
       }
-
-      /*
-      // Now make an invisible plane at the same spot for clicks:
-      const planeGeo  = new THREE.PlaneGeometry(TILE_SIZE, TILE_SIZE);
-      const planeMat = new THREE.MeshBasicMaterial({
-        color: 0x00ff00,
-        wireframe: true,
-        opacity: 0.25,
-        transparent: true
-      });
-      const planeMesh = new THREE.Mesh(planeGeo, planeMat);
-      // rotate X so it lies flat on the floor
-      planeMesh.rotation.x = -Math.PI/2;
-      planeMesh.position.set(
-        offsetX + x*TILE_SIZE + TILE_SIZE/2,
-        0.1,  // small Y offset to avoid z-fighting
-        offsetZ + y*TILE_SIZE + TILE_SIZE/2
-      );
-      // store grid coords
-      planeMesh.userData = { gridX: x, gridZ: y };
-      scene.add(planeMesh);
-      clickables.push(planeMesh);
-      */
     }
   }
 }
@@ -207,17 +182,17 @@ function addDebugObjects() {
       scene.add(obj.model);
     }
   });
-
-  //const playerCoods = dungeon.sparseMatrix[0].coords;
-  //target = playerCoods;
 }
 
-const player = dungeon.sparseMatrix[0];
+let player = dungeon.sparseMatrix[0];
 
 const halfWpx = dungeonPixelWidth  / 2;
 const halfHpz = dungeonPixelHeight / 2;
 
+const ctxMenu = document.getElementById('ctxMenu');
+
 renderer.domElement.addEventListener('click', e => {
+  ctxMenu.style.display = 'none';
   // 1) NDC coords relative to canvas
   const rect = renderer.domElement.getBoundingClientRect();
   mouse.x = ((e.clientX - rect.left) / rect.width)*2 - 1;
@@ -246,20 +221,153 @@ renderer.domElement.addEventListener('click', e => {
                 dungeon.denseMatrix);
 });
 
+renderer.domElement.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  const rect = renderer.domElement.getBoundingClientRect();
+  mouse.x = ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+  mouse.y = -((e.clientY - rect.top ) / rect.height) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, perspCam);
+  const hits = raycaster.intersectObjects(scene.children, true);
+  
+  const worldPt = new THREE.Vector3();
+  if (!raycaster.ray.intersectPlane(ground, worldPt)) return;
+
+  const gridX = Math.floor((worldPt.x + halfWpx) / TILE_SIZE);
+  const gridZ = Math.floor((worldPt.z + halfHpz) / TILE_SIZE);
+
+  if (gridX < 0 || gridZ < 0 || gridX >= WIDTH || gridZ >= HEIGHT) return;
+
+  const tile = dungeon.denseMatrix[gridZ][gridX];
+
+  ctxMenu.innerHTML = '';
+
+  if (tile === TileType.DOOR) {
+    const openDoor = document.createElement('li');
+    openDoor.textContent = 'Open door'
+    openDoor.onclick = () => {
+      //generate new dungeon
+      ctxMenu.style.display = 'none';
+
+      player.moveTo(
+        new THREE.Vector2(gridX, gridZ),
+        dungeon.denseMatrix,
+        () => { // generate a new dungeon
+          dungeon.generateDungeon();
+          dungeon.loadModelMap().then((modelMap) => {
+          buildDungeonWithModels(modelMap);
+          addDebugObjects();
+          player = dungeon.sparseMatrix[0];
+          if (player.model) {
+            target.copy(player.model.position);
+        } else {
+          console.error("Could not readjust camera")
+       }
+    });
+        }
+      );
+
+    };
+    ctxMenu.append(openDoor);
+  }
+
+  const enemy = dungeon.sparseMatrix.find(
+    o => o instanceof Enemy &&
+    o.coords.x === gridX
+    && o.coords.y === gridZ
+  );
+
+  if (hits.length > 0) {
+    let pick = hits[0].object;
+    //const info = pick.userData;
+
+    if (enemy) {
+      const fight = document.createElement('li');
+      fight.textContent = `Fight ${enemy.id}`;
+      fight.onclick = () => {
+        ctxMenu.style.display = 'none';
+        console.log('User clicked fight');
+      }
+      ctxMenu.append(fight);
+      const inspectEnemy = document.createElement('li');
+      inspectEnemy.textContent = `Inspect ${enemy.id}`;
+      inspectEnemy.onclick = () => {
+        ctxMenu.style.display = 'none';
+        dungeon.addStatus(`You see a ${enemy.id}.`);
+      }
+      ctxMenu.append(inspectEnemy);
+    } else {
+      const inspect = document.createElement('li');
+      inspect.textContent = 'Inspect';
+      inspect.onclick = () => {
+        ctxMenu.style.display = 'none';
+        if (tile === TileType.DOOR) {
+          dungeon.addStatus('This door leads to another dungeon...');
+          return;
+        }
+        dungeon.addStatus('You inspect the ground... Nothing interesting happens.');
+        // do something
+      }
+      ctxMenu.append(inspect);
+    }
+  }
+
+  ctxMenu.style.left = `${e.clientX}px`;
+  ctxMenu.style.top  = `${e.clientY}px`;
+  ctxMenu.style.display = 'block';
+});
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') ctxMenu.style.display = 'none'; });
+
+tickMager.onTick(() => {
+  // 1) drive player
+  player.updateMovement(clock.getDelta());
+  player.mixer?.update(clock.getDelta());
+
+  // 2) drive all enemies
+  for (const obj of dungeon.sparseMatrix) {
+    if (obj instanceof Enemy) {
+      // let them decide their next step toward the player
+      obj.think(player.coords, dungeon.denseMatrix);
+
+      // actually move/interpolate
+      obj.updateMovement(clock.getDelta());
+
+      // advance their skeleton animation
+      obj.mixer?.update(clock.getDelta());
+    }
+  }
+});
+
 function animate() {
   requestAnimationFrame(animate);
 
-  // 1) compute delta in seconds
-  const deltaSeconds = clock.getDelta();
+  // 1) get the seconds since last frame
+  const dt = clock.getDelta();        // e.g. 0.016 for ~60fps
+  const dtMS = dt * 1000;             // if your TickManager wants ms
 
-  // 2) smooth continuous movement
-  player.updateMovement(deltaSeconds);
+  // 2) advance your tick-based logic (if you still need it)
+  tickMager.update(dtMS);
 
-  // 3) advance any mixers (bones, etc)
-  player.mixer?.update(deltaSeconds);
-  dungeon.sparseMatrix.forEach(obj => obj.mixer?.update(deltaSeconds));
+  // 3) player continuous movement & animation
+  player.updateMovement(dt);
+  player.mixer?.update(dt);
 
-  // 4) update camera to follow
+  // 4) enemies: AI + movement + animation
+  for (const obj of dungeon.sparseMatrix) {
+    if (obj instanceof Enemy) {
+      // let them decide: walk toward player or idle
+      obj.think(player.coords, dungeon.denseMatrix);
+
+      // move smoothly in world
+      obj.updateMovement(dt);
+
+      // advance their walk/idle animation
+      obj.mixer?.update(dt);
+    }
+  }
+
+  // 5) camera follows player
   if (player.model) target.copy(player.model.position);
   const sinT = Math.sin(theta);
   const camX = target.x + radius*sinT*Math.cos(phi);
@@ -268,7 +376,7 @@ function animate() {
   perspCam.position.set(camX, camY, camZ);
   perspCam.lookAt(target);
 
-  // 5) finally render
+  // 6) finally render
   renderer.render(scene, perspCam);
 }
 

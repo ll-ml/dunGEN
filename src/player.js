@@ -18,13 +18,44 @@ export class Player extends DungeonObject {
     super('./public/character-human.glb',
        startX, 
        startZ, {
-        height: 1.0,
+        height: 0.0,
         scale: 11
        }); // Load the player in. 
     this.path = [];
     this._targetWorldPos = null; // Type THREE.Vector3
     this.moveSpeed = TILE_SIZE * 4;
     this.inventory = [];
+    this.onArrive = null;
+
+    // animations
+    this.mixer = null;
+    this.actions = {};
+    this.currentAction = null;
+
+    this._loadPromise.then(model => {
+      this._initAnimations(model);
+    });
+  }
+
+  _initAnimations(model) {
+    this.mixer = new THREE.AnimationMixer(model);
+
+    const findClip = name => 
+    (this.animations || []).find(c => c.name === name);
+
+    const idleClip = findClip('idle');
+    const walkClip = findClip('walk');
+
+    if (!idleClip || !walkClip) {
+      console.warn('Could not find idle/walk clips for player model', idleClip, walkClip);
+      return;
+    }
+
+    this.actions.idle = this.mixer.clipAction(idleClip);
+    this.actions.walk = this.mixer.clipAction(walkClip);
+
+    this.currentAction = this.actions.idle;
+    this.currentAction.play();
   }
 
   computePath(dest, tiles) {
@@ -106,17 +137,24 @@ export class Player extends DungeonObject {
   }
   
 
-  moveTo(dest, tiles) {
+  moveTo(dest, tiles, onArrive) {
     this.path = this.computePath(dest, tiles);
+    this._onArrive = onArrive || null;
     this._advanceTarget();
-    console.log('  path is Array?', Array.isArray(this.path));      // must be true
-    console.log('  path.length=', this.path.length);                // must be > 0
-    console.log('  path entries:', this.path.map(v=>`${v.x},${v.y}`));
+    this._playAction('walk');
+    //console.log('  path is Array?', Array.isArray(this.path));      // must be true
+    //console.log('  path.length=', this.path.length);                // must be > 0
+    //console.log('  path entries:', this.path.map(v=>`${v.x},${v.y}`));
   }
 
   _advanceTarget() {
     if (this.path.length === 0) {
       this._targetWorldPos = null;
+      this._playAction('idle');
+      if (this._onArrive) {
+        this._onArrive();
+        this.onArrive = null;
+      }
       return;
     }
 
@@ -135,6 +173,17 @@ export class Player extends DungeonObject {
       this.model.position.y,
       this._targetWorldPos.z
     );
+  }
+
+  _playAction(name) {
+    const next = this.actions[name];
+    if (!next || next === this.currentAction) return; 
+
+    next.reset().fadeIn(0.2).play();
+
+    this.currentAction.fadeOut(0.2);
+
+    this.currentAction = next;
   }
 
   updateMovement(deltaSeconds) {

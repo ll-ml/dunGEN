@@ -329,7 +329,7 @@ export class Dungeon {
     }
 
     spawnEnemies() {
-        for (let i = 0; i < 8; i++) {
+        for (let i = 0; i < 4; i++) {
             const spawnRoll = Math.random();
             if (spawnRoll > 0.6) continue;
             const enemyRoll = Math.random();
@@ -342,11 +342,11 @@ export class Dungeon {
             } while (this.denseMatrix[ey][ex] !== TileType.FLOOR);
 
             if (spawnHardEnemy) {
-                let cyclops = new Enemy("Cyclopes", 50, ex, ey, 10); // ID, HP, x, y, atk, agro
-                this.sparseMatrix.push(cyclops);
+                let hardEnemy = new Enemy("./public/character-orc.glb","Orc", 50, ex, ey, 10); // ID, HP, x, y, atk, agro
+                this.sparseMatrix.push(hardEnemy);
             } else {
-                let spider = new Enemy("Spider", 30, ex, ey, 3, 4); // Spiders have smaller agro range
-                this.sparseMatrix.push(spider);
+                let easyEnemy = new Enemy("./public/character-zombie.glb", "Zombie", 30, ex, ey, 3, 4); // zombies have smaller agro range
+                this.sparseMatrix.push(easyEnemy);
             }
         }
     }
@@ -442,5 +442,7 @@ export class Dungeon {
 
 
         await this.spawnPlayer();
+
+        this.spawnEnemies();
     }
 }
