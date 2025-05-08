@@ -15,7 +15,7 @@ export class Player extends DungeonObject {
    * @param {number} startX  grid‑column
    * @param {number} startZ  grid‑row
    */
-  constructor(startX, startZ) {
+  constructor(startX, startZ, hp = 100.0) {
     super('./public/character-human.glb',
        startX, 
        startZ, {
@@ -23,6 +23,7 @@ export class Player extends DungeonObject {
         scale: 11
        }); // Load the player in. 
     this.path = [];
+    this.hp = hp;
     this._targetWorldPos = null; // Type THREE.Vector3
     this.moveSpeed = TILE_SIZE * 4;
     this.inventory = [];
@@ -30,7 +31,7 @@ export class Player extends DungeonObject {
 
     this.combat = new Combatant(
       this.id,
-      100,
+      this.hp,
       10,
       2,
       0.8
@@ -293,17 +294,20 @@ export class Player extends DungeonObject {
   }
 
   playAttack() {
+    const atk = this.actions.attack;
+    if (!atk || this.currentAction === atk) return;
     this.currentAction.fadeOut(0.1);
 
-    const atk = this.actions.attack;
     atk.reset().fadeIn(0.1).play();
     this.currentAction = atk;
 
-    this.mixer.addEventListener('finished', (e) => {
-      if (e.action === this.actions.die) {
-        this._setAction('idle');
+    const onFinish = (e) => {
+      if (e.action === atk) {
+        this.mixer.removeEventListener('finished', onFinish);
+        this._playAction('idle');
       }
-    });
+    };
+    this.mixer.addEventListener('finished', onFinish);
   }
 
   updateMovement(deltaSeconds) {

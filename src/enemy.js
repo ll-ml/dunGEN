@@ -348,16 +348,18 @@ think(playerCoords, tiles) {
   attack() {
     const attackAction = this.actions.attack;
     if (!attackAction) return;
+  
     this._setAction('attack');
-
+  
     const onFinish = e => {
       if (e.action === attackAction) {
         this.mixer.removeEventListener('finished', onFinish);
-
-        this._setAction(this.path && this.path.length ? 'walk' : 'idle');
-
-      };
-      this.mixer.addEventListener('finished', onFinish);
-    }
+        // once the attack clip finishes, go back to walk/idle
+        const nextState = this.path && this.path.length ? 'walk' : 'idle';
+        this._setAction(nextState);
+      }
+    };
+  
+    this.mixer.addEventListener('finished', onFinish);
   }
 }
