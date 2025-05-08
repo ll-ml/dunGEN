@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { TileType } from './types.js';
 import { DungeonObject } from './dungeonObject.js';
+import { Combatant } from './combat.js';
 
 const TILE_SIZE = 11;
 const WIDTH      = 40;   // match your main.js
@@ -22,6 +23,17 @@ export class Enemy extends DungeonObject {
     this.attackPower = atk;
     this.agroRange = agroRange; // This should do more
 
+    this.combat = new Combatant(
+      this.id,
+      hp,
+      atk,
+      0,
+      0.6
+    );
+
+    this.combat.onDie = () => this.die();
+    this.combat.onAttack = () => this.attack();
+
     this.path = [];
     this._targetWorldPos = null;
     this.idleSpeed = TILE_SIZE * 0.75;
@@ -33,6 +45,9 @@ export class Enemy extends DungeonObject {
     this.actions = {};
     this.currentAction = null;
 
+    this._isDying = false;
+    this.readyToRemove = false;
+
     this._loadPromise.then(model => this._initAnimations(model));
   }
 
@@ -42,10 +57,21 @@ export class Enemy extends DungeonObject {
     const find = name => (this.animations || []).find(c => c.name === name);
     const idleClip = find('idle');
     const walkClip = find('walk');
-    if (!idleClip || !walkClip) return console.warn('No idle or walk animatons found for: ', this.id);
+    const dieClip = find('die');
+    const attackClip = find('attack-melee-right');
+    if (!idleClip || !walkClip || !attackClip || !dieClip) return console.warn('No idle, walk or attack animatons found for: ', this.id);
 
     this.actions.idle = this.mixer.clipAction(idleClip);
     this.actions.walk = this.mixer.clipAction(walkClip);
+    this.actions.die = this.mixer.clipAction(dieClip);
+    this.actions.attack = this.mixer.clipAction(attackClip);
+
+    this.actions.die.setLoop(THREE.LoopOnce, 1);
+    this.actions.die.clampWhenFinished = true;
+    
+    this.actions.attack.setLoop(THREE.LoopOnce, 1);
+    this.actions.attack.clampWhenFinished = true;
+
     this.currentAction = this.actions.idle;
     this.currentAction.play();
   }
@@ -84,6 +110,7 @@ _idleStepFrom(from, tiles) {
  * last “wander” path, build a brand‐new 4–10‐step random route.
  */
 think(playerCoords, tiles) {
+  if (!this.model || this._isDying || this.readyToRemove) return; // Probably needs a loading screen at some point
   const manhattan =
     Math.abs(this.coords.x - playerCoords.x) +
     Math.abs(this.coords.y - playerCoords.y);
@@ -92,6 +119,12 @@ think(playerCoords, tiles) {
     // chase
     this.moveSpeed = this.chaseSpeed;
     const step = this.tryMove(playerCoords, tiles);
+    // Look at the player
+    this.model.lookAt(
+      -dungeonPixelWidth / 2 + playerCoords.x * TILE_SIZE + TILE_SIZE / 2,
+      this.model.position.y,
+      -dungeonPixelHeight / 2 + playerCoords.y * TILE_SIZE + TILE_SIZE / 2
+    );
     if (!step.equals(this.coords)) {
       this.path = [ step ];
       this._advanceTarget();
@@ -166,6 +199,9 @@ think(playerCoords, tiles) {
     }
   }
 
+  /**
+ * @param {name} string name of the action to play
+ */
   _setAction(name) {
     const next = this.actions[name];
     if (next && this.currentAction !== next) {
@@ -295,5 +331,33 @@ think(playerCoords, tiles) {
 
   canWalk(tile) {
     return tile !== TileType.WALL && tile !== TileType.WATER & tile !== TileType.DIRT && tile !== TileType.PEBBLE_DIRT && tile !== TileType.ROCK_DIRT;
+  }
+
+  die() {;
+    if (!this.actions.die || this._isDying) return;
+    this._isDying = true;
+    this._setAction('die');
+
+    this.mixer.addEventListener('finished', (e) => {
+      if (e.action == this.actions.die) {
+        this.readyToRemove = true;
+      }
+    });
+  }
+
+  attack() {
+    const attackAction = this.actions.attack;
+    if (!attackAction) return;
+    this._setAction('attack');
+
+    const onFinish = e => {
+      if (e.action === attackAction) {
+        this.mixer.removeEventListener('finished', onFinish);
+
+        this._setAction(this.path && this.path.length ? 'walk' : 'idle');
+
+      };
+      this.mixer.addEventListener('finished', onFinish);
+    }
   }
 }

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { DungeonObject } from './dungeonObject.js';
 import { InventoryItem, TileType } from './types.js';
 import { Enemy } from './enemy.js';
+import { Combatant } from './combat.js';
 
 const TILE_SIZE = 11;
 const WIDTH = 40;
@@ -27,6 +28,17 @@ export class Player extends DungeonObject {
     this.inventory = [];
     this.onArrive = null;
 
+    this.combat = new Combatant(
+      this.id,
+      100,
+      10,
+      2,
+      0.8
+    );
+
+    this.combat.onAttack = () => this.playAttack();
+    this.combat.onDie = () => this.die();
+
     // animations
     this.mixer = null;
     this.actions = {};
@@ -45,14 +57,19 @@ export class Player extends DungeonObject {
 
     const idleClip = findClip('idle');
     const walkClip = findClip('walk');
+    const attackClip = findClip('attack-melee-right');
 
-    if (!idleClip || !walkClip) {
+    if (!idleClip || !walkClip || !attackClip) {
       console.warn('Could not find idle/walk clips for player model', idleClip, walkClip);
       return;
     }
 
     this.actions.idle = this.mixer.clipAction(idleClip);
     this.actions.walk = this.mixer.clipAction(walkClip);
+    this.actions.attack = this.mixer.clipAction(attackClip);
+
+    this.actions.attack.setLoop(THREE.LoopOnce, 1);
+    this.actions.attack.clampWhenFinished = true;
 
     this.currentAction = this.actions.idle;
     this.currentAction.play();
@@ -135,17 +152,106 @@ export class Player extends DungeonObject {
     }
     return path.reverse();
   }
+
+  tryMove(playerPos, tiles) {
+    const rows = tiles.length;
+    const cols = tiles[0].length;
+    const manhattanDist = Math.abs(this.coords.x - playerPos.x) + Math.abs(this.coords.y - playerPos.y);
+    
+    // If the player is too far, do nothing.
+    if (manhattanDist > this.agroRange) {
+      return this.coords.clone();
+    }
+    
+    const directions = [
+      new THREE.Vector2(1, 0),
+      new THREE.Vector2(-1, 0),
+      new THREE.Vector2(0, 1),
+      new THREE.Vector2(0, -1)
+    ];
+    
+    // Initialize distance and previous matrices.
+    const dist = Array.from({ length: rows }, () => Array(cols).fill(Infinity));
+    const prev = Array.from({ length: rows }, () => Array(cols).fill(null));
+    
+    // Simple priority queue implemented as an array.
+    // Each element is an object: { dist: number, pos: THREE.Vector2 }
+    let pq = [];
+    
+    const startX = this.coords.x;
+    const startY = this.coords.y;
+    dist[startY][startX] = 0;
+    pq.push({ dist: 0, pos: new THREE.Vector2(startX, startY) });
+    
+    let finalPos = null;
+    
+    while (pq.length > 0) {
+      // Sort by distance ascending.
+      pq.sort((a, b) => a.dist - b.dist);
+      const { dist: currentDist, pos: currentPos } = pq.shift();
+      
+      // If we are adjacent to the player, stop.
+      if (Math.abs(currentPos.x - playerPos.x) + Math.abs(currentPos.y - playerPos.y) === 1) {
+        finalPos = currentPos;
+        break;
+      }
+      
+      // Explore neighbors.
+      for (const dir of directions) {
+        const nextPos = new THREE.Vector2(currentPos.x + dir.x, currentPos.y + dir.y);
+        // Check bounds.
+        if (nextPos.x < 0 || nextPos.y < 0 || nextPos.x >= cols || nextPos.y >= rows) {
+          continue;
+        }
+        // Skip walls.
+        if (!this.canWalk(tiles[nextPos.y][nextPos.x])) {
+          continue;
+        }
+        const newDist = currentDist + 1;
+        if (newDist < dist[nextPos.y][nextPos.x]) {
+          dist[nextPos.y][nextPos.x] = newDist;
+          prev[nextPos.y][nextPos.x] = currentPos;
+          pq.push({ dist: newDist, pos: nextPos });
+        }
+      }
+    }
+    
+    // If no adjacent tile was found, don't move.
+    if (!finalPos) {
+      return this.coords.clone();
+    }
+    
+    // Backtrack from finalPos until we reach our own coordinates.
+    let step = finalPos;
+    while (prev[step.y][step.x] && !prev[step.y][step.x].equals(this.coords)) {
+      step = prev[step.y][step.x];
+      // If there’s a broken link, stay put.
+      if (!step) {
+        return this.coords.clone();
+      }
+    }
+    
+    // next move towards the player.
+    return step;
+  }
   
 
   moveTo(dest, tiles, onArrive) {
     this.path = this.computePath(dest, tiles);
+    if (this.path.length === 0) return; // this should get rid of the walking bug
     this._onArrive = onArrive || null;
     this._advanceTarget();
     this._playAction('walk');
-    //console.log('  path is Array?', Array.isArray(this.path));      // must be true
-    //console.log('  path.length=', this.path.length);                // must be > 0
-    //console.log('  path entries:', this.path.map(v=>`${v.x},${v.y}`));
   }
+
+  moveToAsync(dest, tiles) {
+    // return a Promise that resolves once we’ve reached `dest`
+    return new Promise(resolve => {
+      // call your normal moveTo, but pass `resolve` as the “onArrive” callback
+      this.moveTo(dest, tiles, resolve);
+    });
+  }
+  
 
   _advanceTarget() {
     if (this.path.length === 0) {
@@ -184,6 +290,20 @@ export class Player extends DungeonObject {
     this.currentAction.fadeOut(0.2);
 
     this.currentAction = next;
+  }
+
+  playAttack() {
+    this.currentAction.fadeOut(0.1);
+
+    const atk = this.actions.attack;
+    atk.reset().fadeIn(0.1).play();
+    this.currentAction = atk;
+
+    this.mixer.addEventListener('finished', (e) => {
+      if (e.action === this.actions.die) {
+        this._setAction('idle');
+      }
+    });
   }
 
   updateMovement(deltaSeconds) {
@@ -248,6 +368,33 @@ export class Player extends DungeonObject {
   applyMove() {
     this.coords.copy(this.desiredPosition);
     this.updateMeshPosition();
+  }
+
+  die() {
+    console.log('Player has been slain');
+  }
+
+  async approachAndFight(enemy, tiles, combatMgr) {
+    while (true) {
+    const ply = this.coords;
+    const entityPos = enemy.coords;
+
+    const mDist = Math.abs(ply.x - entityPos.x) + Math.abs(ply.y - entityPos.y);
+
+    if (mDist === 1) {
+      this.model.lookAt(
+        -dungeonPixelWidth / 2 + entityPos.x * TILE_SIZE + TILE_SIZE / 2,
+        this.model.position.y,
+        -dungeonPixelHeight / 2 + entityPos.y * TILE_SIZE + TILE_SIZE / 2
+      );
+      combatMgr.engage(this.combat, enemy.combat);
+      return;
+    }
+
+    const nextStep = this.tryMove(entityPos, tiles);
+
+    await this.moveToAsync(nextStep, tiles);
+  }
   }
 
   canWalk(tile) {

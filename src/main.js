@@ -3,8 +3,9 @@ import { Dungeon } from './dungeon.js';
 import { TickManager } from './tickManager.js';
 import { Enemy } from './enemy.js';
 import { TileType } from './types.js';
+import { CombatManager } from './combat.js';
 
-const tickMager = new TickManager(600);
+const tickManager = new TickManager(600);
 const clock = new THREE.Clock();
 
 const WIDTH = 40;   // columns
@@ -96,7 +97,7 @@ window.addEventListener("mousemove", (e) => {
 window.addEventListener("wheel", (e) => {
   const zoomSpeed = 0.2;
   radius += e.deltaY * zoomSpeed;
-  radius = Math.max(50, Math.min(1000, radius));
+  radius = Math.max(50, Math.min(250, radius));
 });
 
 const scene = new THREE.Scene();
@@ -119,6 +120,7 @@ await Promise.all(
   dungeon.sparseMatrix.map(obj => obj._loadPromise)
 );
 
+const combatMgr = new CombatManager();
 
 window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -153,29 +155,16 @@ function buildDungeonWithModels(modelMap) {
 
 // Kepp debug for now
 function addDebugObjects() {
-  // Add directional light and its helper
   const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
   directionalLight.position.set(0, 100, 50);
   directionalLight.target.position.set(0, 0, 0);
   scene.add(directionalLight);
   scene.add(directionalLight.target);
 
-  const dirLightHelper = new THREE.DirectionalLightHelper(directionalLight, 5);
-  scene.add(dirLightHelper);
   
-  // Add ambient light
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
   scene.add(ambientLight);
   
-  // Add the debug sphere
-  const sphereGeometry = new THREE.SphereGeometry(2, 32, 32);
-  const sphereMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-  const debugSphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-  debugSphere.position.set(0, 5, 0);
-  // Optionally, scale it if required (or remove the scaling if too large)
-  debugSphere.scale.set(1, 1, 1);
-  scene.add(debugSphere);
-
   dungeon.sparseMatrix.forEach(obj => {
     if (obj.model) {
       // actually put the player/enemy into the scene
@@ -215,6 +204,8 @@ renderer.domElement.addEventListener('click', e => {
     gridX >= WIDTH || gridZ >= HEIGHT ||
     !player.canWalk(dungeon.denseMatrix[gridZ][gridX])
   ) return;
+
+  combatMgr.disengage(player.combat);
 
   // kick off pathfinding
   player.moveTo(new THREE.Vector2(gridX, gridZ),
@@ -279,14 +270,13 @@ renderer.domElement.addEventListener('contextmenu', e => {
 
   if (hits.length > 0) {
     let pick = hits[0].object;
-    //const info = pick.userData;
 
     if (enemy) {
       const fight = document.createElement('li');
       fight.textContent = `Fight ${enemy.id}`;
       fight.onclick = () => {
         ctxMenu.style.display = 'none';
-        console.log('User clicked fight');
+       player.approachAndFight(enemy, dungeon.denseMatrix, combatMgr);
       }
       ctxMenu.append(fight);
       const inspectEnemy = document.createElement('li');
@@ -319,55 +309,61 @@ renderer.domElement.addEventListener('contextmenu', e => {
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') ctxMenu.style.display = 'none'; });
 
-tickMager.onTick(() => {
-  // 1) drive player
+tickManager.onTick(() => {
   player.updateMovement(clock.getDelta());
   player.mixer?.update(clock.getDelta());
 
-  // 2) drive all enemies
+  console.log(player.combat.hp)
+
   for (const obj of dungeon.sparseMatrix) {
-    if (obj instanceof Enemy) {
-      // let them decide their next step toward the player
-      obj.think(player.coords, dungeon.denseMatrix);
+    if (!(obj instanceof Enemy)) continue;
 
-      // actually move/interpolate
-      obj.updateMovement(clock.getDelta());
+    obj.think(player.coords, dungeon.denseMatrix);
+    obj.updateMovement(clock.getDelta());
+    obj.mixer?.update(clock.getDelta());
 
-      // advance their skeleton animation
-      obj.mixer?.update(clock.getDelta());
+    const dist =
+      Math.abs(obj.coords.x - player.coords.x) +
+      Math.abs(obj.coords.y - player.coords.y);
+
+    if (dist === 1) {
+      combatMgr.engage(player.combat, obj.combat);
+    }
+  }
+
+  combatMgr.update();
+
+  for (let i = dungeon.sparseMatrix.length - 1; i >= 0; i--) {
+    const o = dungeon.sparseMatrix[i];
+    if (o instanceof Enemy && o.readyToRemove) {
+      scene.remove(o.model);
+      dungeon.sparseMatrix.splice(i, 1);
     }
   }
 });
 
+
 function animate() {
   requestAnimationFrame(animate);
 
-  // 1) get the seconds since last frame
-  const dt = clock.getDelta();        // e.g. 0.016 for ~60fps
-  const dtMS = dt * 1000;             // if your TickManager wants ms
+  const dt = clock.getDelta();
+  const dtMS = dt * 1000;
 
-  // 2) advance your tick-based logic (if you still need it)
-  tickMager.update(dtMS);
+  tickManager.update(dtMS);
 
-  // 3) player continuous movement & animation
   player.updateMovement(dt);
   player.mixer?.update(dt);
 
-  // 4) enemies: AI + movement + animation
   for (const obj of dungeon.sparseMatrix) {
     if (obj instanceof Enemy) {
-      // let them decide: walk toward player or idle
       obj.think(player.coords, dungeon.denseMatrix);
 
-      // move smoothly in world
       obj.updateMovement(dt);
 
-      // advance their walk/idle animation
       obj.mixer?.update(dt);
     }
   }
 
-  // 5) camera follows player
   if (player.model) target.copy(player.model.position);
   const sinT = Math.sin(theta);
   const camX = target.x + radius*sinT*Math.cos(phi);
@@ -376,7 +372,6 @@ function animate() {
   perspCam.position.set(camX, camY, camZ);
   perspCam.lookAt(target);
 
-  // 6) finally render
   renderer.render(scene, perspCam);
 }
 

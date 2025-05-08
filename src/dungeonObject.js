@@ -49,7 +49,7 @@ export class DungeonObject {
         }
       
         return loadPromise.then((gltf) => {
-          console.log('Loaded GLTF', this.modelPath, gltf);
+         // console.log('Loaded GLTF', this.modelPath, gltf); //dont need this log right now
           this.animations = gltf.animations || [];
           const sceneRoot = gltf.scene[0] || gltf.scenes?.[0];
           if (!sceneRoot) {
