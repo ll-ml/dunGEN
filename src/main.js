@@ -140,23 +140,17 @@ const ctxMenu = document.getElementById('ctxMenu');
 
 renderer.domElement.addEventListener('click', e => {
   ctxMenu.style.display = 'none';
-  // 1) NDC coords relative to canvas
   const rect = renderer.domElement.getBoundingClientRect();
   mouse.x = ((e.clientX - rect.left) / rect.width)*2 - 1;
   mouse.y = -((e.clientY - rect.top) / rect.height)*2 + 1;
-
-  // 2) shoot that ray from your main (persp) camera
   raycaster.setFromCamera(mouse, perspCam);
 
-  // 3) intersect with the y=0 ground plane
   const worldPt = new THREE.Vector3();
   if (!raycaster.ray.intersectPlane(ground, worldPt)) return;
 
-  // 4) convert world → grid
   const gridX = Math.floor((worldPt.x + halfWpx) / TILE_SIZE);
   const gridZ = Math.floor((worldPt.z + halfHpz) / TILE_SIZE);
 
-  // 5) bounds‑check & walkability
   if (
     gridX < 0 || gridZ < 0 ||
     gridX >= WIDTH || gridZ >= HEIGHT ||
@@ -165,7 +159,6 @@ renderer.domElement.addEventListener('click', e => {
 
   combatMgr.disengage(player.combat);
 
-  // kick off pathfinding
   player.moveTo(new THREE.Vector2(gridX, gridZ),
                 dungeon.denseMatrix);
 });
