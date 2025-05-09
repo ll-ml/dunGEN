@@ -5,6 +5,7 @@ import { Enemy } from './enemy.js';
 import { TileType } from './types.js';
 import { CombatManager } from './combat.js';
 import { buildDungeon } from './render.js';
+import { FrameCounter } from './fpsCounter.js';
 
 const tickManager = new TickManager(600);
 const clock = new THREE.Clock();
@@ -92,6 +93,8 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setClearColor(0x222222, 1);
 document.body.appendChild(renderer.domElement);
+// DEBUG
+const fpsCounter = new FrameCounter();
 
 const dungeon = new Dungeon(WIDTH, HEIGHT);
 
@@ -208,6 +211,8 @@ renderer.domElement.addEventListener('contextmenu', e => {
       addAddtionalItems();
       player = dungeon.player;
       target.copy(player.model.position);
+      player.inventory = [];
+      renderInventory(player.inventory);
 
     };
     ctxMenu.append(openDoor);
@@ -249,7 +254,17 @@ renderer.domElement.addEventListener('contextmenu', e => {
         dungeon.addStatus('You inspect the ground... Nothing interesting happens.');
         // do something
       }
+
+      const pickUpFoodEle = document.createElement('li');
+      pickUpFoodEle.textContent = 'Pick up some food';
+      pickUpFoodEle.onclick = () => {
+        ctxMenu.style.display = 'none';
+        dungeon.addStatus('You manage to somehow find a lobster in the dungeon.');
+        player.addTestItem();
+        renderInventory(player.inventory);
+      }
       ctxMenu.append(inspect);
+      ctxMenu.append(pickUpFoodEle);
     }
   }
 
@@ -259,6 +274,98 @@ renderer.domElement.addEventListener('contextmenu', e => {
 });
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') ctxMenu.style.display = 'none'; });
+
+function renderInventory(items) {
+  const slots = document.querySelectorAll('#inventoryItems .slot');
+  slots.forEach((slot, idx) => {
+    // empty
+    slot.innerHTML = '';
+
+    const item = items[idx];
+    if (!item) return;     // nothing to show in this slot
+
+    // create an <img> for the item
+    const img = document.createElement('img');
+    img.src = item.imagePath;            // e.g. "tile_0117.png"
+    img.alt = item.name;
+    img.title = item.description;        // hover shows description
+    img.style.width  = '100%';           // fill the 64px slot
+    img.style.height = '100%';
+    img.style.objectFit = 'contain';
+
+    slot.appendChild(img);
+  });
+}
+
+player.addTestItem();
+renderInventory(player.inventory);
+
+// 1) helper to show the menu at the mouse position
+function showCtxMenu(items, x, y) {
+  const menu = document.getElementById('ctxMenu');
+  menu.innerHTML = '';            // clear old entries
+  items.forEach(({ label, onClick }) => {
+    const li = document.createElement('li');
+    li.textContent = label;
+    li.onclick = () => {
+      menu.style.display = 'none';
+      onClick();
+    };
+    menu.appendChild(li);
+  });
+  menu.style.left = x + 'px';
+  menu.style.top  = y + 'px';
+  menu.style.display = 'block';
+}
+
+// 2) turn off on Escape
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape')
+    document.getElementById('ctxMenu').style.display = 'none';
+});
+
+// 3) wire up each inventory slot
+const slots = document.querySelectorAll('#inventoryItems .slot');
+slots.forEach((slot, idx) => {
+  slot.addEventListener('contextmenu', e => {
+    e.preventDefault();
+
+    const item = player.inventory[idx];
+    if (!item) return;  // empty slot → no menu
+
+    // build whatever actions you like
+    const actions = [
+      {
+        label: `Use ${item.name}`,
+        onClick: () => {
+          console.log('using', item);
+          // your use logic here...
+        }
+      },
+      {
+        label: `Inspect ${item.name}`,
+        onClick: () => {
+          dungeon.addStatus(item.description);
+        }
+      },
+      {
+        label: `Drop ${item.name}`,
+        onClick: () => {
+          player.inventory.splice(idx, 1);
+          renderInventory(player.inventory);
+        }
+      }
+    ];
+
+    // pop it open where they right-clicked
+    showCtxMenu(actions, e.pageX, e.pageY);
+  });
+});
+
+// 4) make clicks elsewhere hide it
+document.body.addEventListener('click', () => {
+  document.getElementById('ctxMenu').style.display = 'none';
+});
 
 tickManager.onTick(() => {
   player.updateMovement(clock.getDelta());
@@ -314,6 +421,7 @@ function animate() {
       obj.mixer?.update(dt);
     }
   }
+  fpsCounter.update();
 
   if (player.model) target.copy(player.model.position);
   const sinT = Math.sin(theta);

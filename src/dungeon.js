@@ -49,82 +49,7 @@ export class Dungeon {
             loadModel('./public/gate.glb', TileType.DOOR),
         ]).then(() => modelMap);
     }
-
-    // DEAD CODE
-    loadMaterialMap() {
-
-        const textureLoader = new THREE.TextureLoader();
-
-        const standardWallTexture = textureLoader.load('./tile_0014.png', () => {
-            standardWallTexture.colorSpace = THREE.SRGBColorSpace
-        });
-
-        const brightWallTexture = textureLoader.load('./tile_0040.png', () => {
-            brightWallTexture.colorSpace = THREE.SRGBColorSpace
-        });
-
-        const daggerHead = textureLoader.load('./tile_0019.png', () => {
-            daggerHead.colorSpace = THREE.SRGBColorSpace
-        });
-
-        const spoutWallTexture = textureLoader.load('./tile_0007.png', () => {
-            spoutWallTexture.colorSpace = THREE.SRGBColorSpace
-        });
-
-        const wallTextures = [ 
-            new THREE.MeshBasicMaterial({ map: standardWallTexture } ),
-            new THREE.MeshBasicMaterial({ map: brightWallTexture } ),
-            new THREE.MeshBasicMaterial({ map: spoutWallTexture } ),
-            new THREE.MeshBasicMaterial({ map: daggerHead } ),
-        ];
-
-        const floorTexture = textureLoader.load('./tile_0048.png', () => {
-            floorTexture.colorSpace = THREE.SRGBColorSpace;
-        });
-
-        const rockTexture = textureLoader.load('./tile_0042.png', () => {
-            rockTexture.colorSpace = THREE.SRGBColorSpace;
-        });
-
-        const pebblesTexture = textureLoader.load('./tile_0049.png', () => {
-            pebblesTexture.colorSpace = THREE.SRGBColorSpace;
-        });
-
-        const doorTexture = textureLoader.load('./tile_0045.png', () => {
-            doorTexture.colorSpace = THREE.SRGBColorSpace;
-        });
-
-        const waterTexture = textureLoader.load('./tile_0037.png', () => {
-            waterTexture.colorSpace = THREE.SRGBColorSpace;
-        });
-
-        const dirtTexture = textureLoader.load('./tile_0000.png', () => {
-            dirtTexture.colorSpace = THREE.SRGBColorSpace;
-        });
-
-        const pebbleDirtTexture = textureLoader.load('./tile_0012.png', () => {
-            pebbleDirtTexture.colorSpace = THREE.SRGBColorSpace;
-        });
-
-        const rocksDirtTexture = textureLoader.load('./tile_0024.png', () => {
-            rocksDirtTexture.colorSpace = THREE.SRGBColorSpace;
-        });
-
-        const materialMap = {
-            [TileType.WALL]: wallTextures,
-            [TileType.FLOOR]: new THREE.MeshBasicMaterial({ map: floorTexture }),
-            [TileType.ROCK]: new THREE.MeshBasicMaterial({ map: rockTexture }),
-            [TileType.PEBBLES]: new THREE.MeshBasicMaterial({ map: pebblesTexture }),
-            [TileType.DOOR]: new THREE.MeshBasicMaterial({ map: doorTexture }),
-            [TileType.WATER]: new THREE.MeshBasicMaterial({ map: waterTexture }),
-            [TileType.DIRT]: new THREE.MeshBasicMaterial({ map: dirtTexture }),
-            [TileType.PEBBLE_DIRT]: new THREE.MeshBasicMaterial({ map: pebbleDirtTexture }),
-            [TileType.ROCK_DIRT]: new THREE.MeshBasicMaterial({ map: rocksDirtTexture }),
-        };
-
-        return materialMap;
-    }
-
+    
     createEmptyMatrix() {
         return Array.from({ length: this.height }, () =>
             Array.from({ length: this.width }, () => TileType.WALL)
@@ -329,7 +254,7 @@ export class Dungeon {
     }
 
     spawnEnemies() {
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < 8; i++) {
             const spawnRoll = Math.random();
             if (spawnRoll > 0.6) continue;
             const enemyRoll = Math.random();
@@ -347,39 +272,6 @@ export class Dungeon {
             } else {
                 let easyEnemy = new Enemy("./public/character-zombie.glb", "Zombie", 30, ex, ey, 3, 4); // zombies have smaller agro range
                 this.sparseMatrix.push(easyEnemy);
-            }
-        }
-    }
-
-    // Takes reference to THREE.js scene
-    updateEnemies(scene) {
-        const player = this.player;
-        if (!player) {
-            console.error("ERROR: player entity does not exist when it should");
-            return;
-        }
-
-        for (const obj of this.sparseMatrix) {
-            if (obj instanceof Enemy) {
-                if (obj.hp <= 0) {
-                    this.addStatus(`You have slain a: ${obj.id}`);
-                    scene.remove(obj.mesh);
-                    if (obj.mesh.geometry) obj.mesh.geometry.dispose();
-                    if (obj.mesh.material) obj.mesh.material.dispose();
-                    this.sparseMatrix.splice(this.sparseMatrix.indexOf(obj), 1);
-                    continue;
-
-                }
-                const nextPos = obj.tryMove(player.coords, this.denseMatrix);
-                if (nextPos.equals(obj.coords)) {
-                    const idlePos = obj.idle(this.denseMatrix);
-                    if (!idlePos.equals(obj.coords)) {
-                        obj.move(idlePos);
-                    }
-                } else {
-                    obj.move(nextPos);
-
-                }
             }
         }
     }
