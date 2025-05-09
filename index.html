@@ -78,7 +78,25 @@
         background: rgba(0,0,0,0.1);
         border: 1px solid #4b3b2f;
         box-sizing: border-box;
-        }
+    }
+
+    .inventory-stats {
+        border-bottom: 2px solid #4b3b2f;
+        padding-bottom: 8px;
+        margin-bottom: 12px;
+        text-align: center;
+    }
+
+    .inventory-stats h3 {
+        margin: 0;
+        font-size: 1em;
+        font-weight: normal;
+    }
+
+    .inventory-stats .stat {
+        margin-top: 4px;
+        font-size: 0.9em;
+    }
 
     #ctxMenu {
         position: absolute;
@@ -111,7 +129,11 @@
 <div id="statusArea"></div>
 <script type="module" src="/src/main.js"></script>
 <div id="inventory">
-    <h2>Inventory</h2>
+    <div class="inventory-stats">
+        <h3>Stats</h3>
+        <div class="stat">HP: <span id="hp">100</span>/<span id="maxHp">100</span></div>
+        <!-- stats will end up here-->
+    </div>
     <div id="inventoryItems">
         <div class="slot"></div>
         <div class="slot"></div>

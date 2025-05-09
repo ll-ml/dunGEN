@@ -332,7 +332,10 @@ slots.forEach((slot, idx) => {
         label: `Use ${item.name}`,
         onClick: () => {
           console.log('using', item);
-          // your use logic here...
+          player.inventory.splice(idx, 1);
+          renderInventory(player.inventory);
+          player.combat.hp+=5;
+          dungeon.addStatus('You consume uncooked lobster for 5 HP.')
         }
       },
       {
@@ -360,11 +363,23 @@ document.body.addEventListener('click', () => {
   document.getElementById('ctxMenu').style.display = 'none';
 });
 
+const health = document.getElementById('hp');
+/*
+let lastHp = player.combat.hp;
+tickManager.onTick(() => {
+  if (player.combat.hp !== lastHp) {
+    hpEl.textContent = player.combat.hp;
+    lastHp = player.combat.hp;
+  }
+});
+This could be nice
+*/
+
 tickManager.onTick(() => {
   player.updateMovement(clock.getDelta());
   player.mixer?.update(clock.getDelta());
 
-  console.log(player.combat.hp)
+  health.textContent = player.combat.hp;
 
   for (const obj of dungeon.sparseMatrix) {
     if (!(obj instanceof Enemy)) continue;

@@ -4,8 +4,6 @@ import {TileType, Room, Pool } from './types.js'
 import { Player } from './player.js'
 import { Enemy } from './enemy.js';
 
-//const TILE_SIZE = 16;  TODO: implment dynamic resizing
-
 export class Dungeon {
     constructor(width, height) {
         this.width = width;
@@ -14,8 +12,6 @@ export class Dungeon {
         this.sparseMatrix = [];
         this.dungeonRooms = [];
         this.statusMessages = [];
-
-        //this.materialMap = this.loadMaterialMap();
     }
 
     loadModelMap() {
