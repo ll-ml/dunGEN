@@ -4,6 +4,7 @@ import { TickManager } from './tickManager.js';
 import { Enemy } from './enemy.js';
 import { TileType } from './types.js';
 import { CombatManager } from './combat.js';
+import { buildDungeon } from './render.js';
 
 const tickManager = new TickManager(600);
 const clock = new THREE.Clock();
@@ -58,22 +59,6 @@ window.addEventListener("mouseup", (e) => {
   }
 });
 
-window.addEventListener('keydown', (event) => {
-  if (event.key === 'Enter') {
-    dungeon.generateDungeon();
-    dungeon.loadModelMap().then((modelMap) => {
-      buildDungeonWithModels(modelMap);
-      addDebugObjects();
-      const playerObj = dungeon.sparseMatrix[0];
-      if (playerObj.model) {
-        target.copy(playerObj.model.position);
-      } else {
-        console.error("Could not readjust camera")
-      }
-    });
-  }
-});
-
 // Update camera angles when moving the mouse (only if middle button is held)
 window.addEventListener("mousemove", (e) => {
   if (!isMiddleMouseDown) return;
@@ -111,10 +96,11 @@ document.body.appendChild(renderer.domElement);
 const dungeon = new Dungeon(WIDTH, HEIGHT);
 
 await dungeon.generateDungeon();
-dungeon.loadModelMap().then((modelMap) => {
-  buildDungeonWithModels(modelMap);
-  addDebugObjects();
-});
+
+const modelMap = await dungeon.loadModelMap();
+buildDungeon(scene, modelMap, dungeon.denseMatrix);
+
+addAddtionalItems();
 
 await Promise.all(
   dungeon.sparseMatrix.map(obj => obj._loadPromise)
@@ -122,39 +108,8 @@ await Promise.all(
 
 const combatMgr = new CombatManager();
 
-window.addEventListener('resize', () => {
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  perspCam.aspect = window.innerWidth / window.innerHeight;
-  perspCam.updateProjectionMatrix();
-});
-
-function buildDungeonWithModels(modelMap) {
-  // clear out both scene children _and_ clickables
-  while (scene.children.length) scene.remove(scene.children[0]);
-
-  const offsetX = -dungeonPixelWidth / 2;
-  const offsetZ = -dungeonPixelHeight/ 2;
-
-  for (let y = 0; y < HEIGHT; y++) {
-    for (let x = 0; x < WIDTH; x++) {
-      const tile = dungeon.denseMatrix[y][x];
-      const baseModel = modelMap[tile];
-      if (baseModel) {
-        const modelInstance = baseModel.clone();
-        modelInstance.position.set(
-          offsetX + x*TILE_SIZE + TILE_SIZE/2,
-          0,
-          offsetZ + y*TILE_SIZE + TILE_SIZE/2
-        );
-        modelInstance.scale.setScalar(11);
-        scene.add(modelInstance);
-      }
-    }
-  }
-}
-
 // Kepp debug for now
-function addDebugObjects() {
+function addAddtionalItems() {
   const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
   directionalLight.position.set(0, 100, 50);
   directionalLight.target.position.set(0, 0, 0);
@@ -173,7 +128,7 @@ function addDebugObjects() {
   });
 }
 
-let player = dungeon.sparseMatrix[0];
+let player = dungeon.player;
 
 const halfWpx = dungeonPixelWidth  / 2;
 const halfHpz = dungeonPixelHeight / 2;
@@ -236,27 +191,23 @@ renderer.domElement.addEventListener('contextmenu', e => {
   if (tile === TileType.DOOR) {
     const openDoor = document.createElement('li');
     openDoor.textContent = 'Open door'
-    openDoor.onclick = () => {
+    openDoor.onclick = async () => {
       //generate new dungeon
       ctxMenu.style.display = 'none';
 
-      player.moveTo(
+      await player.moveToAsync(
         new THREE.Vector2(gridX, gridZ),
-        dungeon.denseMatrix,
-        () => { // generate a new dungeon
-          dungeon.generateDungeon();
-          dungeon.loadModelMap().then((modelMap) => {
-          buildDungeonWithModels(modelMap);
-          addDebugObjects();
-          player = dungeon.sparseMatrix[0];
-          if (player.model) {
-            target.copy(player.model.position);
-        } else {
-          console.error("Could not readjust camera")
-       }
-    });
-        }
+        dungeon.denseMatrix
       );
+
+      await dungeon.generateDungeon();
+
+      const modelMap = await dungeon.loadModelMap();
+
+      buildDungeon(scene, modelMap, dungeon.denseMatrix);
+      addAddtionalItems();
+      player = dungeon.player;
+      target.copy(player.model.position);
 
     };
     ctxMenu.append(openDoor);

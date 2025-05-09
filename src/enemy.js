@@ -333,7 +333,7 @@ think(playerCoords, tiles) {
     return tile !== TileType.WALL && tile !== TileType.WATER & tile !== TileType.DIRT && tile !== TileType.PEBBLE_DIRT && tile !== TileType.ROCK_DIRT;
   }
 
-  die() {;
+  die() {
     if (!this.actions.die || this._isDying) return;
     this._isDying = true;
     this._setAction('die');
