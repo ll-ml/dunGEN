@@ -392,8 +392,13 @@ tickManager.onTick(() => {
       Math.abs(obj.coords.x - player.coords.x) +
       Math.abs(obj.coords.y - player.coords.y);
 
-    if (dist === 1) {
+    if (dist === 1 && player.currentAction !== player.actions.walk) { // This is ugly but works to some extent
       combatMgr.engage(player.combat, obj.combat);
+    }
+
+    // Instead of directly interacting with players actions like so should have some method of player to dealt with this
+    if(player.currentAction === player.actions.walk) {
+      combatMgr.disengage(obj.combat);
     }
   }
 

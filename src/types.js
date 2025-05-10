@@ -7,6 +7,7 @@ export const TileType = {
     ROCK: ':',
     PEBBLES: ';',
     DOOR: 'D',
+    DOOR_WAY: 'd',
     WATER: '~',
 };
 

@@ -23,6 +23,18 @@ export function buildDungeon(scene, modelMap, dungeonTiles) {
             if (tile === TileType.DIRT || tile === TileType.PEBBLE_DIRT || tile === TileType.ROCK_DIRT) {
                 dirtCoords.push([x, y]); // better than using THREE.Vector2D? 
             } else {
+                if (tile === TileType.DOOR) {
+                    const doorwayModel = modelMap[TileType.DOOR_WAY];
+                    const doorWayInst = doorwayModel.clone();
+
+                    doorWayInst.position.set(
+                        offsetX + x * TILE_SIZE + TILE_SIZE / 2,
+                        0,
+                        offsetZ + y * TILE_SIZE + TILE_SIZE / 2
+                    )
+                    doorWayInst.scale.setScalar(11);
+                    scene.add(doorWayInst);
+                }
                 const proto = modelMap[tile];
                 if (!proto) continue;
                 const modelInstance = proto.clone();

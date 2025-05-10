@@ -409,7 +409,7 @@ export class Player extends DungeonObject {
   addTestItem() {
     const warHammer = new InventoryItem(
       "Lobster",
-      "Food",
+      "Uncooked Lobster",
       "tile_0110.png",
       "Uncooked Lobster, grants +5 HP"
     );

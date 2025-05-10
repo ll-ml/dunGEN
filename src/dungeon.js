@@ -39,9 +39,10 @@ export class Dungeon {
             loadModel('./public/floor-detail.glb', TileType.PEBBLES),
             loadModel('./public/floor.glb', TileType.ROCK),
             loadModel('./public/wall.glb', TileType.WALL),
-            loadModel('./public/dirt.glb', TileType.DIRT),
-            loadModel('./public/dirt.glb', TileType.PEBBLE_DIRT),
-            loadModel('./public/dirt.glb', TileType.ROCK_DIRT),
+            //loadModel('./public/dirt.glb', TileType.DIRT),
+            //loadModel('./public/dirt.glb', TileType.PEBBLE_DIRT),
+            //loadModel('./public/dirt.glb', TileType.ROCK_DIRT),
+            loadModel('./public/wall-opening.glb', TileType.DOOR_WAY),
             loadModel('./public/gate.glb', TileType.DOOR),
         ]).then(() => modelMap);
     }
