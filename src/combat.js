@@ -84,7 +84,9 @@ export class CombatManager {
             const session = this.sessions[i];
             const result = session.step();
             if (result) {
-                this.sessions.splice(i, 1); // remove from array
+                //this.sessions.splice(i, 1); // remove from array
+                this.disengage(result.winner);
+                this.disengage(result.loser);
             }
         }
     }

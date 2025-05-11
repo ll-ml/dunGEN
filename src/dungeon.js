@@ -1,4 +1,3 @@
-import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import {TileType, Room, Pool } from './types.js'
 import { Player } from './player.js'
@@ -251,7 +250,7 @@ export class Dungeon {
     }
 
     spawnEnemies() {
-        for (let i = 0; i < 8; i++) {
+        for (let i = 0; i < 4; i++) {
             const spawnRoll = Math.random();
             if (spawnRoll > 0.6) continue;
             const enemyRoll = Math.random();

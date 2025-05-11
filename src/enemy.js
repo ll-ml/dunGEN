@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { TileType } from './types.js';
 import { DungeonObject } from './dungeonObject.js';
 import { Combatant } from './combat.js';
+import { PriorityQueue } from './pq.js'
 
 const TILE_SIZE = 11;
 const WIDTH      = 40;   // match your main.js
@@ -245,7 +246,8 @@ think(playerCoords, tiles) {
     
     // Simple priority queue implemented as an array.
     // Each element is an object: { dist: number, pos: THREE.Vector2 }
-    let pq = [];
+    //let pq = [];
+    const pq = new PriorityQueue((a, b) => a.dist - b.dist);
     
     const startX = this.coords.x;
     const startY = this.coords.y;
@@ -254,10 +256,10 @@ think(playerCoords, tiles) {
     
     let finalPos = null;
     
-    while (pq.length > 0) {
+    while (!pq.isEmpty()) {
       // Sort by distance ascending.
-      pq.sort((a, b) => a.dist - b.dist);
-      const { dist: currentDist, pos: currentPos } = pq.shift();
+      //pq.sort((a, b) => a.dist - b.dist);
+      const { dist: currentDist, pos: currentPos } = pq.pop();
       
       // If we are adjacent to the player, stop.
       if (Math.abs(currentPos.x - playerPos.x) + Math.abs(currentPos.y - playerPos.y) === 1) {
@@ -286,7 +288,7 @@ think(playerCoords, tiles) {
     }
     
     // If no adjacent tile was found, don't move.
-    if (!finalPos) {
+    if (finalPos === null) {
       return this.coords.clone();
     }
     

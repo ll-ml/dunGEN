@@ -32,7 +32,7 @@ export function buildDungeon(scene, modelMap, dungeonTiles) {
                         0,
                         offsetZ + y * TILE_SIZE + TILE_SIZE / 2
                     )
-                    doorWayInst.scale.setScalar(11);
+                    doorWayInst.scale.setScalar(TILE_SIZE);
                     scene.add(doorWayInst);
                 }
                 const proto = modelMap[tile];
@@ -44,7 +44,7 @@ export function buildDungeon(scene, modelMap, dungeonTiles) {
                     0,
                     offsetZ + y * TILE_SIZE + TILE_SIZE / 2
                 );
-                modelInstance.scale.setScalar(11); // Hard code constant for now
+                modelInstance.scale.setScalar(TILE_SIZE); // Hard code constant for now
                 scene.add(modelInstance);
             
             }

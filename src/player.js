@@ -386,19 +386,19 @@ export class Player extends DungeonObject {
     const mDist = Math.abs(ply.x - entityPos.x) + Math.abs(ply.y - entityPos.y);
 
     if (mDist === 1) {
-      this.model.lookAt(
-        -dungeonPixelWidth / 2 + entityPos.x * TILE_SIZE + TILE_SIZE / 2,
-        this.model.position.y,
-        -dungeonPixelHeight / 2 + entityPos.y * TILE_SIZE + TILE_SIZE / 2
-      );
-      combatMgr.engage(this.combat, enemy.combat);
-      return;
+        this.model.lookAt(
+          -dungeonPixelWidth / 2 + entityPos.x * TILE_SIZE + TILE_SIZE / 2,
+          this.model.position.y,
+          -dungeonPixelHeight / 2 + entityPos.y * TILE_SIZE + TILE_SIZE / 2
+        );
+        combatMgr.engage(this.combat, enemy.combat);
+        return;
+      }
+
+      const nextStep = this.tryMove(entityPos, tiles);
+
+      await this.moveToAsync(nextStep, tiles);
     }
-
-    const nextStep = this.tryMove(entityPos, tiles);
-
-    await this.moveToAsync(nextStep, tiles);
-  }
   }
 
   canWalk(tile) {
