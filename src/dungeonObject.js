@@ -27,7 +27,9 @@ export class DungeonObject {
         this.height = opts.height ?? 1; 
         this.scale = opts.scale ?? 10;
         this.id = opts.id ?? "default"
+
         this.model = null;
+        this.hitbox = new THREE.Box3;
 
         this.animations = [];
 
@@ -60,8 +62,8 @@ export class DungeonObject {
           this.model.scale.setScalar(this.scale);
           this.updatePosition();
       
-          // debug bounding box
-          const bbox = new THREE.Box3().setFromObject(this.model);
+          const boundingBox = new THREE.Box3().setFromObject(this.model);
+          this.hitbox = boundingBox;
       
           return this.model;
         });
@@ -75,6 +77,7 @@ export class DungeonObject {
         const wz = offsetZ  + this.coords.y * TILE_SIZE + TILE_SIZE / 2;
 
         this.model.position.set(wx, wy, wz);
+        this.hitbox.setFromObject(this.model);
     }
 
     setPosition(x, z, height = 0) {

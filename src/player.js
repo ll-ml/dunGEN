@@ -21,7 +21,7 @@ export class Player extends DungeonObject {
        startX, 
        startZ, {
         height: 0.0,
-        scale: 11
+        scale: TILE_SIZE
        }); // Load the player in. 
     this.path = [];
     this.hp = hp;

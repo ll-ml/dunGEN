@@ -82,7 +82,10 @@ export class CombatManager {
     update() {
         for (let i = this.sessions.length - 1; i >= 0; i--) {
             const session = this.sessions[i];
-            if (!session) console.warn('Attempted to extract non-existant combat session');
+            if (!session) {
+                console.warn('Combat Error: attempted to reference not-existant combat session');
+                return;
+            }
             const result = session.step();
             if (result) {
                 //this.sessions.splice(i, 1); // Should we be still splicing this?

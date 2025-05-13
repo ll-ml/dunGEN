@@ -15,7 +15,7 @@ export class Enemy extends DungeonObject {
     const glbModelPath = glbPath;
     super(glbModelPath, x, y,
       {
-        scale: 11,
+        scale: TILE_SIZE,
         height: 0.0
       }
     );

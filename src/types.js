@@ -1,3 +1,5 @@
+export const TILE_SIZE = 11;
+
 export const TileType = {
     WALL: '#',
     DIRT: '=',

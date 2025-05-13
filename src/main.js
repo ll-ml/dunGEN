@@ -7,6 +7,7 @@ import { CombatManager } from './combat.js';
 import { buildDungeon } from './render.js';
 import { FrameCounter } from './fpsCounter.js';
 import { renderInventory, setupInventoryContext } from './inventory.js';
+import { StorageItem } from './storageItem.js'
 
 const tickManager = new TickManager(600);
 const clock = new THREE.Clock();
@@ -182,6 +183,19 @@ renderer.domElement.addEventListener('contextmenu', e => {
   const tile = dungeon.denseMatrix[gridZ][gridX];
 
   ctxMenu.innerHTML = '';
+
+  let storage; 
+  for (const obj of dungeon.sparseMatrix) {
+    if (!(obj instanceof StorageItem) || !obj.hitbox) continue;
+    obj.hitbox.setFromObject(obj.model);
+    if (raycaster.ray.intersectBox(obj.hitbox, new THREE.Vector3())) {
+      storage = obj;
+      break;
+    }
+  }
+  if (storage) {
+    console.log('Right clicked on storage');
+  }
 
   if (tile === TileType.DOOR) {
     const openDoor = document.createElement('li');

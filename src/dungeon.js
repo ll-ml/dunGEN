@@ -2,6 +2,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import {TileType, Room, Pool } from './types.js'
 import { Player } from './player.js'
 import { Enemy } from './enemy.js';
+import { StorageItem } from './storageItem.js'
 
 export class Dungeon {
     constructor(width, height) {
@@ -272,6 +273,20 @@ export class Dungeon {
         }
     }
 
+    spawnLoot() {
+        let lootX, lootY;
+        for (let i = 0; i < 3; i++) {
+
+            do {
+                lootX = this.randInt(1, this.width - 2);
+                lootY = this.randInt(1, this.height - 2);
+            } while (this.denseMatrix[lootY][lootX] !== TileType.FLOOR);
+
+            let loot = new StorageItem("barrel", lootX, lootY, []);
+            this.sparseMatrix.push(loot);
+        }
+    }
+
     get player() {
         return this.sparseMatrix.find(obj => obj instanceof Player); // This should go by ID at some point rather than inst of
     }
@@ -326,7 +341,7 @@ export class Dungeon {
         this.connectRooms();
         this.placeDoors();
 
-        this.spawnPools();
+        this.spawnLoot();
 
 
         await this.spawnPlayer();
