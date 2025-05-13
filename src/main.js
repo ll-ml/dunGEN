@@ -6,6 +6,7 @@ import { TileType } from './types.js';
 import { CombatManager } from './combat.js';
 import { buildDungeon } from './render.js';
 import { FrameCounter } from './fpsCounter.js';
+import { renderInventory, setupInventoryContext } from './inventory.js';
 
 const tickManager = new TickManager(600);
 const clock = new THREE.Clock();
@@ -111,7 +112,6 @@ await Promise.all(
 
 const combatMgr = new CombatManager();
 
-// Kepp debug for now
 function addAddtionalItems() {
   const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
   directionalLight.position.set(0, 100, 50);
@@ -125,7 +125,6 @@ function addAddtionalItems() {
   
   dungeon.sparseMatrix.forEach(obj => {
     if (obj.model) {
-      // actually put the player/enemy into the scene
       scene.add(obj.model);
     }
   });
@@ -205,6 +204,7 @@ renderer.domElement.addEventListener('contextmenu', e => {
       player = dungeon.player;
       target.copy(player.model.position);
       player.inventory = [];
+      setupInventoryContext(player, dungeon);
       renderInventory(player.inventory);
 
     };
@@ -268,100 +268,9 @@ renderer.domElement.addEventListener('contextmenu', e => {
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') ctxMenu.style.display = 'none'; });
 
-function renderInventory(items) {
-  const slots = document.querySelectorAll('#inventoryItems .slot');
-  slots.forEach((slot, idx) => {
-    // empty
-    slot.innerHTML = '';
+setupInventoryContext(player, dungeon);
 
-    const item = items[idx];
-    if (!item) return;     // nothing to show in this slot
 
-    // create an <img> for the item
-    const img = document.createElement('img');
-    img.src = item.imagePath;            // e.g. "tile_0117.png"
-    img.alt = item.name;
-    img.title = item.description;        // hover shows description
-    img.style.width  = '100%';           // fill the 64px slot
-    img.style.height = '100%';
-    img.style.objectFit = 'contain';
-
-    slot.appendChild(img);
-  });
-}
-
-player.addTestItem();
-renderInventory(player.inventory);
-
-// 1) helper to show the menu at the mouse position
-function showCtxMenu(items, x, y) {
-  const menu = document.getElementById('ctxMenu');
-  menu.innerHTML = '';            // clear old entries
-  items.forEach(({ label, onClick }) => {
-    const li = document.createElement('li');
-    li.textContent = label;
-    li.onclick = () => {
-      menu.style.display = 'none';
-      onClick();
-    };
-    menu.appendChild(li);
-  });
-  menu.style.left = x + 'px';
-  menu.style.top  = y + 'px';
-  menu.style.display = 'block';
-}
-
-// 2) turn off on Escape
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape')
-    document.getElementById('ctxMenu').style.display = 'none';
-});
-
-// 3) wire up each inventory slot
-const slots = document.querySelectorAll('#inventoryItems .slot');
-slots.forEach((slot, idx) => {
-  slot.addEventListener('contextmenu', e => {
-    e.preventDefault();
-
-    const item = player.inventory[idx];
-    if (!item) return;  // empty slot → no menu
-
-    // build whatever actions you like
-    const actions = [
-      {
-        label: `Use ${item.name}`,
-        onClick: () => {
-          console.log('using', item);
-          player.inventory.splice(idx, 1);
-          renderInventory(player.inventory);
-          player.combat.hp+=5;
-          dungeon.addStatus('You consume uncooked lobster for 5 HP.')
-        }
-      },
-      {
-        label: `Inspect ${item.name}`,
-        onClick: () => {
-          dungeon.addStatus(item.description);
-        }
-      },
-      {
-        label: `Drop ${item.name}`,
-        onClick: () => {
-          player.inventory.splice(idx, 1);
-          renderInventory(player.inventory);
-        }
-      }
-    ];
-
-    // pop it open where they right-clicked
-    showCtxMenu(actions, e.pageX, e.pageY);
-  });
-});
-
-// 4) make clicks elsewhere hide it
-document.body.addEventListener('click', () => {
-  document.getElementById('ctxMenu').style.display = 'none';
-});
 
 const health = document.getElementById('hp');
 /*

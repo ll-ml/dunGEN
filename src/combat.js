@@ -82,9 +82,10 @@ export class CombatManager {
     update() {
         for (let i = this.sessions.length - 1; i >= 0; i--) {
             const session = this.sessions[i];
+            if (!session) console.warn('Attempted to extract non-existant combat session');
             const result = session.step();
             if (result) {
-                //this.sessions.splice(i, 1); // remove from array
+                //this.sessions.splice(i, 1); // Should we be still splicing this?
                 this.disengage(result.winner);
                 this.disengage(result.loser);
             }
