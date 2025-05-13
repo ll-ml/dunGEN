@@ -1,3 +1,19 @@
+export class InventoryItem {
+  /**
+ * @param {string} id - Unique identifier for the item.
+ * @param {string} name - The display name of the item.
+ * @param {string} imagePath - Path to the item's image.
+ * @param {string} description - A brief description of the item.
+ */
+
+  constructor(id, name, imagePath, description) {
+      this.id = id;
+      this.name = name;
+      this.imagePath = imagePath;
+      this.description = description;
+  }
+}
+
 export function renderInventory(items) {
     const slots = document.querySelectorAll('#inventoryItems .slot');
     slots.forEach((slot, idx) => {

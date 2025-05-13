@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { DungeonObject } from './dungeonObject.js';
-import { InventoryItem, TileType } from './types.js';
+import { TileType } from './types.js';
+import { InventoryItem } from './inventory.js';
 import { Enemy } from './enemy.js';
 import { Combatant } from './combat.js';
 
