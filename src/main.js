@@ -128,6 +128,7 @@ function addAddtionalItems() {
     if (obj.model) {
       scene.add(obj.model);
     }
+     //obj.addTo(scene);
   });
 }
 
@@ -194,7 +195,15 @@ renderer.domElement.addEventListener('contextmenu', e => {
     }
   }
   if (storage) {
-    console.log('Right clicked on storage');
+    const searchStorage = document.createElement('li');
+    searchStorage.textContent = 'Search ' + storage.id;
+    searchStorage.onclick = () => {
+      ctxMenu.style.display = 'none';
+      console.log('Player wants to search container');
+
+    }
+
+    ctxMenu.append(searchStorage);
   }
 
   if (tile === TileType.DOOR) {
@@ -225,14 +234,25 @@ renderer.domElement.addEventListener('contextmenu', e => {
     ctxMenu.append(openDoor);
   }
 
+/*
   const enemy = dungeon.sparseMatrix.find(
     o => o instanceof Enemy &&
     o.coords.x === gridX
     && o.coords.y === gridZ
   );
+  */
+ let enemy = null;
+
+ for (const obj of dungeon.sparseMatrix) {
+  if (!(obj instanceof Enemy) || !obj.hitbox) continue;
+  obj.hitbox.setFromObject(obj.model);
+  if (raycaster.ray.intersectBox(obj.hitbox, new THREE.Vector3())) {
+    enemy = obj;
+    break;
+  }
+ }
 
   if (hits.length > 0) {
-    let pick = hits[0].object;
 
     if (enemy) {
       const fight = document.createElement('li');

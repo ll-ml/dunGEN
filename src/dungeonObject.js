@@ -2,98 +2,89 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
-const TILE_SIZE = 11; // TODO: Make sure its ok
-const WIDTH = 40;   // columns
-const HEIGHT = 30;  // rows
-
-const offsetX = -(WIDTH * TILE_SIZE) / 2;
-const offsetZ = -(HEIGHT * TILE_SIZE) / 2; // Z is depth, Y held constant
+const TILE_SIZE = 11;
+const WIDTH     = 40;
+const HEIGHT    = 30;
+const offsetX   = -(WIDTH  * TILE_SIZE) / 2;
+const offsetZ   = -(HEIGHT * TILE_SIZE) / 2;
 
 export class DungeonObject {
-    //Loader and the cache of all previously loaded models
-    static loader = new GLTFLoader();
-    static modelCache = {};
- /**
-   * @param {string} modelPath   URL or relative path to your .glb
-   * @param {number} gridX              - column index (0..WIDTH-1)
-   * @param {number} gridZ              - row    index (0..HEIGHT-1)
-   * @param {Object} [opts]
-   * @param {number} [opts.height=0]    - world‑Y, e.g. floor sits at 0
-   * @param {number} [opts.scale=1]     - uniform scale for the clone
-   */
-    constructor(modelPath, gridX, gridZ, opts ={}) {
-        this.modelPath = modelPath;
-        this.coords = new THREE.Vector2(gridX, gridZ);
-        this.height = opts.height ?? 1; 
-        this.scale = opts.scale ?? 10;
-        this.id = opts.id ?? "default"
+  static loader      = new GLTFLoader();
+  static modelCache  = {};
 
-        this.model = null;
-        this.hitbox = new THREE.Box3;
+  constructor(modelPath, gridX, gridY, opts = {}) {
+    this.modelPath = modelPath;
+    this.coords    = new THREE.Vector2(gridX, gridY);
+    this.height    = opts.height ?? 0;
+    this.scale     = opts.scale  ?? TILE_SIZE;
+    this.model     = null;
 
-        this.animations = [];
+    // our world‐space box & helper
+    this.hitbox = new THREE.Box3();
+    this.helper = new THREE.Box3Helper(this.hitbox, 0xff0000);
 
-        this._loadPromise = this._loadAndSetup();
+    this._loadPromise = this._loadAndSetup();
+  }
+
+  _loadAndSetup() {
+    let p = DungeonObject.modelCache[this.modelPath];
+    if (!p) {
+      p = new Promise((res, rej) =>
+        DungeonObject.loader.load(this.modelPath, res, null, rej)
+      );
+      DungeonObject.modelCache[this.modelPath] = p;
     }
 
-    _loadAndSetup() {
-        let loadPromise = DungeonObject.modelCache[this.modelPath];
-        if (!loadPromise) {
-          loadPromise = new Promise((resolve, reject) => {
-            DungeonObject.loader.load(
-              this.modelPath,
-              gltf => resolve(gltf),
-              undefined,
-              err  => reject(err)
-            );
-          });
-          DungeonObject.modelCache[this.modelPath] = loadPromise;
+    return p.then(gltf => {
+      // clone actual mesh
+      this.animations = gltf.animations || [];
+      const raw       = gltf.scene;
+      this.model      = SkeletonUtils.clone(raw);
+      this.model.scale.setScalar(this.scale);
+      this.updatePosition();
+
+      this._recomputeBox();
+
+      return this.model;
+    });
+  }
+
+  addTo(scene) {
+    return this._loadPromise.then(model => {
+      scene.add(model);
+      return model;
+    });
+  }
+
+  updatePosition() {
+    if (!this.model) return;
+    const wx = offsetX + this.coords.x * TILE_SIZE + TILE_SIZE/2;
+    const wz = offsetZ + this.coords.y * TILE_SIZE + TILE_SIZE/2;
+    const wy = this.height;
+    this.model.position.set(wx, wy, wz);
+
+    // now push that movement into the hitbox
+    this._recomputeBox();
+    // for debugging
+    this.helper.box.copy(this.hitbox);
+    this.helper.updateMatrixWorld(true);
+  }
+
+  // shared routine to rebuild the Box3 from all Mesh children
+  _recomputeBox() {
+    this.model.updateWorldMatrix(true, false);
+    this.hitbox.makeEmpty();
+    this.model.traverse(o => {
+      if (o.isMesh) {
+        // ensure geometry bbox is computed
+        if (!o.geometry.boundingBox) {
+          o.geometry.computeBoundingBox();
         }
-      
-        return loadPromise.then((gltf) => {
-         // console.log('Loaded GLTF', this.modelPath, gltf); //dont need this log right now
-          this.animations = gltf.animations || [];
-          const sceneRoot = gltf.scene[0] || gltf.scenes?.[0];
-          if (!sceneRoot) {
-            throw new Error(`GLTF had no scene: ${this.modelPath}`);
-          }
-          //this.model = sceneRoot.clone(true);
-          this.model = SkeletonUtils.clone(sceneRoot);
-          this.model.scale.setScalar(this.scale);
-          this.updatePosition();
-      
-          const boundingBox = new THREE.Box3().setFromObject(this.model);
-          this.hitbox = boundingBox;
-      
-          return this.model;
-        });
+        // take the mesh’s local bbox, bring into world‐space
+        const mb = o.geometry.boundingBox.clone();
+        mb.applyMatrix4(o.matrixWorld);
+        this.hitbox.union(mb);
       }
-
-    updatePosition() {
-        if (!this.model) return;
-
-        const wx = offsetX + this.coords.x * TILE_SIZE + TILE_SIZE / 2;
-        const wy = this.height;
-        const wz = offsetZ  + this.coords.y * TILE_SIZE + TILE_SIZE / 2;
-
-        this.model.position.set(wx, wy, wz);
-        this.hitbox.setFromObject(this.model);
-    }
-
-    setPosition(x, z, height = 0) {
-      this.coords.set(x, z);
-      this.height = height;
-      return this._loadPromise.then(() => {
-        this.updatePosition();
-        return this.model;
-      })
-    }
-
-    addTo(scene) {
-        return this._loadPromise.then((model) => {
-            scene.add(model);
-            return model;
-
-        });
-    }
+    });
+  }
 }
