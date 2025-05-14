@@ -164,6 +164,37 @@ renderer.domElement.addEventListener('click', e => {
                 dungeon.denseMatrix);
 });
 
+function renderStorage(chest) {
+  const slots = document.querySelectorAll('#storageSlots .slot');
+  slots.forEach((slot, idx) => {
+    slot.innerHTML = '';
+    const item = chest.contents[idx];
+    if (!item) return;
+    const img = document.createElement('img');
+    img.src   = item.imagePath;
+    img.title = item.name;
+    img.onclick = () => {
+      // take the item
+      player.inventory.push(item);
+      dungeon.addStatus(`You take ${item.name}.`);
+      chest.contents.splice(idx,1);
+      renderStorage(chest);
+      renderInventory(player.inventory);
+    };
+    slot.appendChild(img);
+  });
+}
+
+// show / hide
+const modal      = document.getElementById('storageModal');
+const closeBtn   = document.getElementById('storageClose');
+closeBtn.onclick = () => modal.classList.add('hidden');
+
+function openStorageModal(chest) {
+  renderStorage(chest);
+  modal.classList.remove('hidden');
+}
+
 renderer.domElement.addEventListener('contextmenu', e => {
   e.preventDefault();
   const rect = renderer.domElement.getBoundingClientRect();
@@ -197,9 +228,15 @@ renderer.domElement.addEventListener('contextmenu', e => {
   if (storage) {
     const searchStorage = document.createElement('li');
     searchStorage.textContent = 'Search ' + storage.id;
-    searchStorage.onclick = () => {
+    searchStorage.onclick = async () => {
       ctxMenu.style.display = 'none';
-      console.log('Player wants to search container');
+      const barrelX = storage.coords.x;
+      const barrelY = storage.coords.y;
+      await player.moveToAsync(
+        new THREE.Vector2(barrelX - 1, barrelY - 1), // this works
+        dungeon.denseMatrix
+      );
+      openStorageModal(storage);
 
     }
 

@@ -119,11 +119,43 @@
         background: #444;
     }
 
+    .modal {
+        position: fixed;
+        top: 0; left: 0; right:0; bottom:0;
+        background: rgba(0,0,0,0.75);
+        display: flex; align-items: center; justify-content: center;
+        }
+
+    .modal.hidden { display: none; }
+
+    .modal-content {
+        background: #f0e6d2; color: #4b3b2f;
+        padding: 20px; border: 2px solid #333;
+        font-family: 'DungeonFont', monospace;
+        text-align: center;
+    }
+
+    .slots {
+        display: flex; gap: 10px;
+        margin: 10px 0;
+    }
+
+    .slots .slot {
+        width: 64px; height: 64px;
+        background: rgba(0,0,0,0.1); border:1px solid #4b3b2f;
+        position: relative;
+    }
+
+    .slots .slot img {
+        width:100%; height:100%; object-fit:contain;
+        cursor: pointer;
+    }
+
 </style>
 </head>
 <body>
 
-<h1 id="game-title">Unbound Depths v.0.0.93</h1>
+<h1 id="game-title">Unbound Depths v.0.0.94</h1>
 
 <ul id="ctxMenu"></ul>
 <div id="statusArea"></div>
@@ -145,6 +177,19 @@
         <div class="slot"></div>
         <div class="slot"></div>
          <!-- inventory items -->
+    </div>
+</div>
+
+<!-- storage modal, hidden by default -->
+<div id="storageModal" class="modal hidden">
+    <div class="modal-content">
+      <h2>Container</h2>
+      <div id="storageSlots" class="slots">
+        <div class="slot"></div>
+        <div class="slot"></div>
+        <div class="slot"></div>
+      </div>
+      <button id="storageClose">Close</button>
     </div>
 </div>
 

@@ -3,6 +3,7 @@ import {TileType, Room, Pool } from './types.js'
 import { Player } from './player.js'
 import { Enemy } from './enemy.js';
 import { StorageItem } from './storageItem.js'
+import { InventoryItem } from './inventory.js';
 
 export class Dungeon {
     constructor(width, height) {
@@ -282,7 +283,14 @@ export class Dungeon {
                 lootY = this.randInt(1, this.height - 2);
             } while (this.denseMatrix[lootY][lootX] !== TileType.FLOOR);
 
-            let loot = new StorageItem("barrel", lootX, lootY, []);
+            const testItem = new InventoryItem (
+                "Lobster",
+                "Uncooked Lobster",
+                "tile_0110.png",
+                "Uncooked Lobster, grants +5 HP"
+            );
+
+            let loot = new StorageItem("barrel", lootX, lootY, [testItem, testItem]);
             this.sparseMatrix.push(loot);
         }
     }
