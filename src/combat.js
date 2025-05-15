@@ -46,6 +46,10 @@ export class CombatSession {
     if (!this.active) return null;
     const attacker = (this.turn === 0 ? this.a : this.b);
     const defender = (this.turn === 0 ? this.b : this.a);
+
+    if (attacker.owner?.model && defender.owner?.model) {
+      attacker.owner.model.lookAt(defender.owner.model.position);
+    }
     const { hit, damage } = resolveAttack(attacker, defender);
 
     if (hit && typeof attacker.onAttack === "function") {

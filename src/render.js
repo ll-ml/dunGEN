@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { TileType } from './types.js';
-import  { mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import  { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 const WIDTH = 40;   // columns
 const HEIGHT = 30;  // rows

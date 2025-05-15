@@ -40,6 +40,7 @@ export class Player extends DungeonObject {
 
     this.combat.onAttack = () => this.playAttack();
     this.combat.onDie = () => this.die();
+    this.combat.owner = this;
 
     // animations
     this.mixer = null;
