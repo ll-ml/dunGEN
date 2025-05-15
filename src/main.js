@@ -111,7 +111,17 @@ await Promise.all(
   dungeon.sparseMatrix.map(obj => obj._loadPromise)
 );
 
-const combatMgr = new CombatManager();
+let combatMgr = new CombatManager();
+combatMgr.onDeath = ({ winner, loser, hit, damage}) => {
+  const deadObj = loser.owner; 
+  const { x, y } = deadObj.coords;
+
+  const lootBarrel = new StorageItem("Loot Barrel", x, y, []);
+
+  dungeon.sparseMatrix.push(lootBarrel);
+
+  lootBarrel.addTo(scene);
+}
 
 function addAddtionalItems() {
   const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
@@ -127,8 +137,8 @@ function addAddtionalItems() {
   dungeon.sparseMatrix.forEach(obj => {
     if (obj.model) {
       scene.add(obj.model);
+      obj.inScene = true;
     }
-     //obj.addTo(scene);
   });
 }
 
@@ -180,6 +190,7 @@ function renderStorage(chest) {
       chest.contents.splice(idx,1);
       renderStorage(chest);
       renderInventory(player.inventory);
+      
     };
     slot.appendChild(img);
   });
@@ -266,20 +277,22 @@ renderer.domElement.addEventListener('contextmenu', e => {
       player.inventory = [];
       setupInventoryContext(player, dungeon);
       renderInventory(player.inventory);
-
+      combatMgr = new CombatManager();
+      combatMgr.onDeath = ({ winner, loser, hit, damage}) => {
+        const deadObj = loser.owner; 
+        const { x, y } = deadObj.coords;
+      
+        const lootBarrel = new StorageItem("Loot Barrel", x, y, []);
+      
+        dungeon.sparseMatrix.push(lootBarrel);
+      
+        lootBarrel.addTo(scene);
+      }
     };
     ctxMenu.append(openDoor);
   }
 
-/*
-  const enemy = dungeon.sparseMatrix.find(
-    o => o instanceof Enemy &&
-    o.coords.x === gridX
-    && o.coords.y === gridZ
-  );
-  */
  let enemy = null;
-
  for (const obj of dungeon.sparseMatrix) {
   if (!(obj instanceof Enemy) || !obj.hitbox) continue;
   obj.hitbox.setFromObject(obj.model);
@@ -319,16 +332,7 @@ renderer.domElement.addEventListener('contextmenu', e => {
         // do something
       }
 
-      const pickUpFoodEle = document.createElement('li');
-      pickUpFoodEle.textContent = 'Pick up some food';
-      pickUpFoodEle.onclick = () => {
-        ctxMenu.style.display = 'none';
-        dungeon.addStatus('You manage to somehow find a lobster in the dungeon.');
-        player.addTestItem();
-        renderInventory(player.inventory);
-      }
       ctxMenu.append(inspect);
-      ctxMenu.append(pickUpFoodEle);
     }
   }
 
@@ -355,59 +359,53 @@ tickManager.onTick(() => {
 This could be nice
 */
 
-tickManager.onTick(() => {
-  player.updateMovement(clock.getDelta());
-  player.mixer?.update(clock.getDelta());
+tickManager.onTick((dtMS) => {
+  const dt = dtMS / 1000;
 
   health.textContent = player.combat.hp;
 
-  for (const obj of dungeon.sparseMatrix) {
-    if (!(obj instanceof Enemy)) continue;
+  for (const e of dungeon.sparseMatrix) {
+    if (!(e instanceof Enemy)) continue;
 
-    obj.think(player.coords, dungeon.denseMatrix);
-    obj.updateMovement(clock.getDelta());
-    obj.mixer?.update(clock.getDelta());
-
+    e.think(player.coords, dungeon.denseMatrix);
     const dist =
-      Math.abs(obj.coords.x - player.coords.x) +
-      Math.abs(obj.coords.y - player.coords.y);
+      Math.abs(e.coords.x - player.coords.x)
+      + Math.abs(e.coords.y - player.coords.y);
 
-    if (dist === 1 && player.currentAction !== player.actions.walk) { // This is ugly but works to some extent
-      combatMgr.engage(player.combat, obj.combat);
+    if (dist === 1 && !e.inCombat) {
+      e.inCombat = true;
+      combatMgr.engage(player.combat, e.combat);
     }
-
-    // Instead of directly interacting with players actions like so should have some method of player to dealt with this
-    if(player.currentAction === player.actions.walk) {
-      combatMgr.disengage(obj.combat);
+    else if (dist !== 1 && e.inCombat) {
+      e.inCombat = false;
+      combatMgr.disengage(e.combat);
     }
   }
 
   combatMgr.update();
 
   for (let i = dungeon.sparseMatrix.length - 1; i >= 0; i--) {
-    const o = dungeon.sparseMatrix[i];
-    if (o instanceof Enemy && o.readyToRemove) {
-      scene.remove(o.model);
+    const obj = dungeon.sparseMatrix[i];
+    if (obj instanceof Enemy && obj.readyToRemove) {
+      scene.remove(obj.model);
       dungeon.sparseMatrix.splice(i, 1);
     }
   }
 });
 
-
 function animate() {
   requestAnimationFrame(animate);
 
   const dt = clock.getDelta();
-  const dtMS = dt * 1000;
 
-  tickManager.update(dtMS);
+  tickManager.update(dt * 1000);
 
   player.updateMovement(dt);
   player.mixer?.update(dt);
 
   for (const obj of dungeon.sparseMatrix) {
     if (obj instanceof Enemy) {
-      obj.think(player.coords, dungeon.denseMatrix);
+      obj.think(player.coords, dungeon.denseMatrix); // this is a problem
 
       obj.updateMovement(dt);
 

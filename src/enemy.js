@@ -31,6 +31,7 @@ export class Enemy extends DungeonObject {
       0,
       0.6
     );
+    this.combat.owner = this;
 
     this.combat.onDie = () => this.die();
     this.combat.onAttack = () => this.attack();
