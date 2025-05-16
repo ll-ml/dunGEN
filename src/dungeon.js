@@ -268,7 +268,7 @@ export class Dungeon {
                 let hardEnemy = new Enemy("./public/character-orc.glb","Orc", 50, ex, ey, 10); // ID, HP, x, y, atk, agro
                 this.sparseMatrix.push(hardEnemy);
             } else {
-                let easyEnemy = new Enemy("./public/character-zombie.glb", "Zombie", 30, ex, ey, 3, 4); // zombies have smaller agro range
+                let easyEnemy = new Enemy("./public/character-zombie.glb", "Zombie", 30, ex, ey, 7, 4); // zombies have smaller agro range
                 this.sparseMatrix.push(easyEnemy);
             }
         }

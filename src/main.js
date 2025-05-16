@@ -8,6 +8,7 @@ import { buildDungeon } from './render.js';
 import { FrameCounter } from './fpsCounter.js';
 import { renderInventory, setupInventoryContext } from './inventory.js';
 import { StorageItem } from './storageItem.js'
+import { initDamageDisplay } from './damageDisplay.js';
 
 const tickManager = new TickManager(600);
 const clock = new THREE.Clock();
@@ -107,6 +108,7 @@ buildDungeon(scene, modelMap, dungeon.denseMatrix);
 
 addAddtionalItems();
 
+initDamageDisplay(renderer, perspCam);
 await Promise.all(
   dungeon.sparseMatrix.map(obj => obj._loadPromise)
 );
@@ -196,7 +198,7 @@ function renderStorage(chest) {
   });
 }
 
-// show / hide
+// show / hide our stoageModal
 const modal      = document.getElementById('storageModal');
 const closeBtn   = document.getElementById('storageClose');
 closeBtn.onclick = () => modal.classList.add('hidden');

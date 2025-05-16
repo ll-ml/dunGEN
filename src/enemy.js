@@ -3,6 +3,7 @@ import { TileType } from './types.js';
 import { DungeonObject } from './dungeonObject.js';
 import { Combatant } from './combat.js';
 import { PriorityQueue } from './pq.js'
+import { showDamage } from './damageDisplay.js';
 
 const TILE_SIZE = 11;
 const WIDTH      = 40;   // match your main.js

@@ -1,4 +1,4 @@
-import { StorageItem } from "./storageItem";
+import { showDamage } from './damageDisplay';
 
 export class Combatant {
   constructor(id, maxHp, attack, defence = 0, hitChance = 0.75) {
@@ -27,12 +27,23 @@ export class Combatant {
 }
 
 export function resolveAttack(attacker, defender) {
-  const hit    = Math.random() < attacker.hitChance;
-  const damage = hit
-    ? Math.max(1, attacker.attackPower - defender.defence)
-    : 0;
-  return { hit, damage };
+  const hit = Math.random() < attacker.hitChance;
+  let damage = 0, defenderDied = false;
+
+  if (hit) {
+    damage = Math.max(1, attacker.attackPower - defender.defence);
+    defenderDied = defender.takeDamage(damage);
+
+    if (attacker.owner?.model && defender.owner?.model) {
+      const worldPos = defender.owner.model.position.clone();
+      worldPos.y += defender.owner.height + 1; 
+      showDamage(damage, worldPos);
+    }
+  }
+
+  return { hit, damage, defenderDied };
 }
+
 
 export class CombatSession {
   constructor(a, b) {

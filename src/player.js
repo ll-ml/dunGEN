@@ -5,6 +5,7 @@ import { InventoryItem } from './inventory.js';
 import { Enemy } from './enemy.js';
 import { Combatant } from './combat.js';
 
+
 const TILE_SIZE = 11;
 const WIDTH = 40;
 const HEIGHT = 30;
@@ -38,9 +39,9 @@ export class Player extends DungeonObject {
       0.8
     );
 
+    this.combat.owner = this;
     this.combat.onAttack = () => this.playAttack();
     this.combat.onDie = () => this.die();
-    this.combat.owner = this;
 
     // animations
     this.mixer = null;
