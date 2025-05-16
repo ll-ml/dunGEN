@@ -275,23 +275,38 @@ export class Dungeon {
     }
 
     spawnLoot() {
-        let lootX, lootY;
-        for (let i = 0; i < 3; i++) {
+        const lootPool = [
+            new InventoryItem("raw_meat",    "Raw meat",    "meat-raw.png", "It would be wise to cook this over a fire."),
+            new InventoryItem("cheese_wheel","Cheese wheel","cheese.png",   "A wheel of cheese."),
+            new InventoryItem("cabbage",     "Cabbage",     "cabbage.png",  "A head of cabbage.")
 
-            do {
-                lootX = this.randInt(1, this.width - 2);
-                lootY = this.randInt(1, this.height - 2);
-            } while (this.denseMatrix[lootY][lootX] !== TileType.FLOOR);
+        ]
 
-            const testItem = new InventoryItem (
-                "Lobster",
-                "Uncooked Lobster",
-                "tile_0110.png",
-                "Uncooked Lobster, grants +5 HP"
-            );
+        let chance = 0.30;
 
-            let loot = new StorageItem("barrel", lootX, lootY, [testItem, testItem]);
-            this.sparseMatrix.push(loot);
+        for (const room of this.dungeonRooms) {
+            if (Math.random() < chance) {
+                const numItems = this.randInt(0, 3);
+
+                for (let i = 0; i < numItems; i++) {
+                    let x, y;
+
+                    do {
+                        x = this.randInt(room.x, room.x + room.width - 1);
+                        y = this.randInt(room.y, room.y + room.height - 1);
+                    } while (this.denseMatrix[y][x] !== TileType.FLOOR);
+
+                    const contents = lootPool
+                                    .slice()
+                                    .sort(() => Math.random() - 0.5)
+                                    .slice(0, numItems);
+
+                    const barrel = new StorageItem("Barrel", x, y, contents);
+                    this.sparseMatrix.push(barrel);
+                }
+            }
+
+            chance *= 0.25;
         }
     }
 

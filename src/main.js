@@ -116,13 +116,20 @@ await Promise.all(
 let combatMgr = new CombatManager();
 combatMgr.onDeath = ({ winner, loser, hit, damage}) => {
   const deadObj = loser.owner; 
-  const { x, y } = deadObj.coords;
-
-  const lootBarrel = new StorageItem("Loot Barrel", x, y, []);
-
-  dungeon.sparseMatrix.push(lootBarrel);
-
-  lootBarrel.addTo(scene);
+  if (deadObj instanceof Enemy && deadObj.id === 'Orc' && Math.random() < 0.1) {
+    const { x, y } = deadObj.coords;
+    const lootChest = new StorageItem(
+      "Wooden Chest",
+      x, 
+      y,
+      [],
+      {
+        glbPath: './public/chest.glb'
+      }
+    );
+    dungeon.sparseMatrix.push(lootChest);
+    lootChest.addTo(scene);
+  }
 }
 
 function addAddtionalItems() {
@@ -282,13 +289,20 @@ renderer.domElement.addEventListener('contextmenu', e => {
       combatMgr = new CombatManager();
       combatMgr.onDeath = ({ winner, loser, hit, damage}) => {
         const deadObj = loser.owner; 
-        const { x, y } = deadObj.coords;
-      
-        const lootBarrel = new StorageItem("Loot Barrel", x, y, []);
-      
-        dungeon.sparseMatrix.push(lootBarrel);
-      
-        lootBarrel.addTo(scene);
+        if (deadObj instanceof Enemy && deadObj.id === 'Orc' && Math.random() < 0.1) {
+          const { x, y } = deadObj.coords;
+          const lootChest = new StorageItem(
+            "Wooden Chest",
+            x, 
+            y,
+            [],
+            {
+              glbPath: './public/chest.glb'
+            }
+          );
+          dungeon.sparseMatrix.push(lootChest);
+          lootChest.addTo(scene);
+        }
       }
     };
     ctxMenu.append(openDoor);
