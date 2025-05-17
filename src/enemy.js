@@ -228,7 +228,8 @@ think(playerCoords, tiles) {
   tryMove(playerPos, tiles) {
     const rows = tiles.length;
     const cols = tiles[0].length;
-    const manhattanDist = Math.abs(this.coords.x - playerPos.x) + Math.abs(this.coords.y - playerPos.y);
+    //const manhattanDist = Math.abs(this.coords.x - playerPos.x) + Math.abs(this.coords.y - playerPos.y);
+    const manhattanDist = this.coords.manhattanDistanceTo(playerPos);
     
     // If the player is too far, do nothing.
     if (manhattanDist > this.agroRange) {

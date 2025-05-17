@@ -314,6 +314,10 @@ export class Player extends DungeonObject {
   }
 
   updateMovement(deltaSeconds) {
+    if (this.path.length === 0) {
+      this._targetWorldPos = null;
+      return; // This should stop invalid pathing bugs
+    }
     if (!this._targetWorldPos) return; 
 
     const dir = this._targetWorldPos.clone().sub(this.model.position);

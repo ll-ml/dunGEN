@@ -250,10 +250,14 @@ renderer.domElement.addEventListener('contextmenu', e => {
     searchStorage.textContent = 'Search ' + storage.id;
     searchStorage.onclick = async () => {
       ctxMenu.style.display = 'none';
-      const barrelX = storage.coords.x;
-      const barrelY = storage.coords.y;
+      // TODO make this better and not buggy
+      const barrelLoc = new THREE.Vector2(storage.coords.x, storage.coords.y);
+      if (player.coords.manhattanDistanceTo(barrelLoc) <= 2) {
+        openStorageModal(storage);
+        return;
+      }
       await player.moveToAsync(
-        new THREE.Vector2(barrelX - 1, barrelY - 1), // this works
+        barrelLoc.subScalar(1), // this works
         dungeon.denseMatrix
       );
       openStorageModal(storage);
