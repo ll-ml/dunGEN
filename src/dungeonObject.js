@@ -8,6 +8,12 @@ const HEIGHT    = 30;
 const offsetX   = -(WIDTH  * TILE_SIZE) / 2;
 const offsetZ   = -(HEIGHT * TILE_SIZE) / 2;
 
+
+/**
+   * @param {string} modelPath   URL or relative path to your .glb
+   * @param {number} gridX, gridY  
+   * @param {{ height?: number, scale?: number, colormap?: string }} opts
+   */
 export class DungeonObject {
   static loader      = new GLTFLoader();
   static modelCache  = {};
@@ -17,6 +23,7 @@ export class DungeonObject {
     this.coords    = new THREE.Vector2(gridX, gridY);
     this.height    = opts.height ?? 0;
     this.scale     = opts.scale  ?? TILE_SIZE;
+    this.colormap = opts.colormap || null;
     this.model     = null;
 
     // our world‐space box & helper
@@ -42,6 +49,35 @@ export class DungeonObject {
       this.model      = SkeletonUtils.clone(raw);
       this.model.scale.setScalar(this.scale);
       this.updatePosition();
+
+      if (this.colormap) {
+        const texLoader = new THREE.TextureLoader();
+        texLoader.load(
+          this.colormap,
+          (tex) => {
+            tex.encoding = THREE.sRGBEncoding;
+            tex.colorSpace = THREE.SRGBColorSpace
+            tex.flipY    = false;
+
+            this.model.traverse(node => {
+              if (!node.isMesh) return;
+
+              const mat = node.material.clone();
+              mat.map = tex;
+              mat.needsUpdate = true;
+
+              mat.metalnessMap = null;
+              mat.roughnessMap = null;
+              mat.metalness    = 0;
+              mat.roughness    = 2;
+
+              node.material = mat;
+            });
+          },
+          undefined,
+          (err) => console.error("Failed to load colormap", err)
+        );
+      }
 
       this._recomputeBox();
 

@@ -1,5 +1,5 @@
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import {TileType, Room, Pool } from './types.js'
+import {TileType, Room, Pool, TILE_SIZE } from './types.js'
 import { Player } from './player.js'
 import { Enemy } from './enemy.js';
 import { StorageItem } from './storageItem.js'
@@ -268,7 +268,15 @@ export class Dungeon {
                 let hardEnemy = new Enemy("./public/character-orc.glb","Orc", 50, ex, ey, 10); // ID, HP, x, y, atk, agro
                 this.sparseMatrix.push(hardEnemy);
             } else {
-                let easyEnemy = new Enemy("./public/character-zombie.glb", "Zombie", 30, ex, ey, 7, 4); // zombies have smaller agro range
+                let easyEnemy = new Enemy("./public/character-zombie.glb",
+                     "Zombie",
+                      30, ex, ey, 7, 4,
+                    {
+                        scale: TILE_SIZE,
+                        height: 0,
+                        colormap: "./public/Textures/colormap2.png"
+
+                    });
                 this.sparseMatrix.push(easyEnemy);
             }
         }

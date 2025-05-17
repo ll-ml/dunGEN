@@ -12,12 +12,14 @@ const dungeonPixelWidth  = WIDTH  * TILE_SIZE;
 const dungeonPixelHeight = HEIGHT * TILE_SIZE;
 
 export class Enemy extends DungeonObject {
-  constructor(glbPath, id, hp, x, y, atk, agroRange = 10) {
+  constructor(glbPath, id, hp, x, y, atk, agroRange = 10, opts = {}) {
+    const { colormap = null, scale = TILE_SIZE, height = 0.0 } = opts;
     const glbModelPath = glbPath;
     super(glbModelPath, x, y,
       {
-        scale: TILE_SIZE,
-        height: 0.0
+        colormap,
+        scale,
+        height
       }
     );
     this.id = id;
