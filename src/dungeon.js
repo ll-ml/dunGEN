@@ -5,6 +5,8 @@ import { Player } from './player.js'
 import { Enemy } from './enemy.js';
 import { StorageItem } from './storageItem.js'
 import { InventoryItem } from './inventory.js';
+import { generateLoot } from "./loot.js";
+
 
 export class Dungeon {
     constructor(width, height) {
@@ -309,39 +311,49 @@ export class Dungeon {
     }
 
     spawnLoot() {
-        const lootPool = [
-            new InventoryItem("raw_meat",    "Raw meat",    "./Items/meat-raw.png", "It would be wise to cook this over a fire."),
-            new InventoryItem("cheese_wheel","Cheese wheel","/Items/cheese.png",   "A wheel of cheese."),
-            new InventoryItem("cabbage",     "Cabbage",     "./Items/cabbage.png",  "A head of cabbage.")
+        let chance = 1.0;
+        let anySpawned = false; 
 
-        ]
-
-        let chance = 0.30;
+        const randomFloorInRoom = room => {
+            let x, y;
+            
+            do {
+                x = this.randInt(room.x, room.x + room.width - 1);
+                y = this.randInt(room.y, room.y + room.height - 1);
+            } while (this.denseMatrix[y][x] !== TileType.FLOOR);
+            return { x, y };
+        };
 
         for (const room of this.dungeonRooms) {
             if (Math.random() < chance) {
-                const numItems = this.randInt(0, 3);
+                const { x, y } = randomFloorInRoom(room);
 
-                for (let i = 0; i < numItems; i++) {
-                    let x, y;
-
-                    do {
-                        x = this.randInt(room.x, room.x + room.width - 1);
-                        y = this.randInt(room.y, room.y + room.height - 1);
-                    } while (this.denseMatrix[y][x] !== TileType.FLOOR);
-
-                    const contents = lootPool
-                                    .slice()
-                                    .sort(() => Math.random() - 0.5)
-                                    .slice(0, numItems);
-
-                    const barrel = new StorageItem("Barrel", x, y, contents);
-                    this.sparseMatrix.push(barrel);
-                }
+                const count = this.randInt(0, 3);
+                const contents = generateLoot(count);
+                
+                this.sparseMatrix.push(
+                    new StorageItem("Barrel", x, y, contents)
+                );
+                anySpawned = true;
             }
-
             chance *= 0.25;
         }
+
+         // If player gets bad RNG force a spawn for at least one loot barrel
+         if (!anySpawned && this.dungeonRooms.length) {
+            const fallbackRoom = this.dungeonRooms[
+                this.randInt(0, this.dungeonRooms.length)
+            ]
+
+            const { x, y } = randomFloorInRoom(fallbackRoom);
+            const numItems = this.randInt(1, 3);
+            const contents = generateLoot(numItems);
+            
+
+            this.sparseMatrix.push(
+                new StorageItem("Barrel", x, y, contents)
+            );
+         }
     }
 
     get player() {
