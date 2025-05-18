@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import {TileType, Room, Pool, TILE_SIZE } from './types.js'
 import { Player } from './player.js'
@@ -15,37 +16,54 @@ export class Dungeon {
         this.statusMessages = [];
     }
 
-    loadModelMap() {
+    async loadModelMap() {
         const loader = new GLTFLoader();
+        const texLoader = new THREE.TextureLoader();
         const modelMap = {};
 
-        const loadModel = (url, key) => {
-            return new Promise((resolve, reject) => {
-                loader.load(
-                    url, 
-                    (gltf) => {
-                        modelMap[key] = gltf.scene;
-                        resolve();
-                    },
-                    undefined,
-                    (error) => reject(error)
-                );
-            });
-        };
+        async function loadModel(url, key, colormapUrl = null) {
+            const gltf = await loader.loadAsync(url);
+        
+            const sceneClone = gltf.scene.clone(true);
+        
+            if (colormapUrl) {
+              const map = await texLoader.loadAsync(colormapUrl);
+              map.encoding = THREE.sRGBEncoding;
+              map.colorSpace = THREE.SRGBColorSpace;
+              map.flipY    = false;
+        
+              sceneClone.traverse(node => {
+                if (!node.isMesh) return;
+                const mat = node.material.clone();
+                mat.map          = map;
+                mat.needsUpdate  = true;
+
+                mat.metalnessMap = null;
+                mat.roughnessMap = null;
+                mat.metalness    = 0;
+                mat.roughness    = 1;
+                node.material    = mat;
+              });
+            }
+        
+            modelMap[key] = sceneClone;
+          }
 
         // Duplicates are to ensure no holes in dungeon for now
-        return Promise.all([
+        await Promise.all([
             loadModel('./public/wall.glb', TileType.WALL),
-            loadModel('./public/floor.glb', TileType.FLOOR),
-            loadModel('./public/floor-detail.glb', TileType.PEBBLES),
+            //loadModel('./public/alternate-wall.glb', TileType.WALL, './public/Textures/colormap3.png'),
+            //loadModel('./public/floor.glb', TileType.FLOOR),
+            loadModel('./public/alternate-floor.glb', TileType.FLOOR, './public/Textures/colormap3.png'),
+            //loadModel('./public/floor-detail.glb', TileType.PEBBLES),
+            loadModel('./public/alternate-floor-detail.glb', TileType.PEBBLES, './public/Textures/colormap3.png'),
             loadModel('./public/floor.glb', TileType.ROCK),
             loadModel('./public/wall.glb', TileType.WALL),
-            //loadModel('./public/dirt.glb', TileType.DIRT),
-            //loadModel('./public/dirt.glb', TileType.PEBBLE_DIRT),
-            //loadModel('./public/dirt.glb', TileType.ROCK_DIRT),
             loadModel('./public/wall-opening.glb', TileType.DOOR_WAY),
             loadModel('./public/gate.glb', TileType.DOOR),
-        ]).then(() => modelMap);
+        ]);
+
+        return modelMap;
     }
     
     createEmptyMatrix() {
@@ -265,7 +283,15 @@ export class Dungeon {
             } while (this.denseMatrix[ey][ex] !== TileType.FLOOR);
 
             if (spawnHardEnemy) {
-                let hardEnemy = new Enemy("./public/character-orc.glb","Orc", 50, ex, ey, 10); // ID, HP, x, y, atk, agro
+                //let hardEnemy = new Enemy("./public/character-orc.glb","Orc", 50, ex, ey, 10); // ID, HP, x, y, atk, agro
+                let hardEnemy = new Enemy ("./public/character-soldier.glb",
+                    "Legion Grunt",
+                    60, ex, ey, 10, 15,
+                    {
+                        scale: TILE_SIZE, 
+                        height: 0, 
+                        colormap: "./public/Textures/colormap3.png"
+                    });
                 this.sparseMatrix.push(hardEnemy);
             } else {
                 let easyEnemy = new Enemy("./public/character-zombie.glb",
@@ -284,9 +310,9 @@ export class Dungeon {
 
     spawnLoot() {
         const lootPool = [
-            new InventoryItem("raw_meat",    "Raw meat",    "meat-raw.png", "It would be wise to cook this over a fire."),
-            new InventoryItem("cheese_wheel","Cheese wheel","cheese.png",   "A wheel of cheese."),
-            new InventoryItem("cabbage",     "Cabbage",     "cabbage.png",  "A head of cabbage.")
+            new InventoryItem("raw_meat",    "Raw meat",    "./Items/meat-raw.png", "It would be wise to cook this over a fire."),
+            new InventoryItem("cheese_wheel","Cheese wheel","/Items/cheese.png",   "A wheel of cheese."),
+            new InventoryItem("cabbage",     "Cabbage",     "./Items/cabbage.png",  "A head of cabbage.")
 
         ]
 
