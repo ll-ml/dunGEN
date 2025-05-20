@@ -24,7 +24,9 @@ export function buildDungeon(scene, modelMap, dungeonTiles) {
                 dirtCoords.push([x, y]); // better than using THREE.Vector2D? 
             } else {
                 if (tile === TileType.DOOR) {
-                    const doorwayModel = modelMap[TileType.DOOR_WAY];
+                    // Swapped out door model logic for now
+                    // See commit: https://github.com/ll-ml/UnboundDepths/commit/defcdfbc231ccf250a93309e5a539d25883fc84d
+                    const doorwayModel = modelMap[TileType.FLOOR];
                     const doorWayInst = doorwayModel.clone();
 
                     doorWayInst.position.set(

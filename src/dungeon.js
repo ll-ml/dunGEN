@@ -4,15 +4,15 @@ import {TileType, Room, Pool, TILE_SIZE } from './types.js'
 import { Player } from './player.js'
 import { Enemy } from './enemy.js';
 import { StorageItem } from './storageItem.js'
-import { InventoryItem } from './inventory.js';
 import { generateLoot } from "./loot.js";
 
 
 export class Dungeon {
-    constructor(width, height) {
+    constructor(width, height, theme = (Math.random() < 0.25 ? 'arena' : 'default')) {
         this.width = width;
         this.height = height;
         this.denseMatrix = this.createEmptyMatrix();
+        this.theme = theme;
         this.sparseMatrix = [];
         this.dungeonRooms = [];
         this.statusMessages = [];
@@ -51,6 +51,26 @@ export class Dungeon {
             modelMap[key] = sceneClone;
           }
 
+          const themes = {
+            default: [
+                ['./public/wall.glb',        TileType.WALL,      null],
+                ['./public/floor.glb',       TileType.FLOOR,     null],
+                ['./public/floor-detail.glb',TileType.PEBBLES,   null],
+                ['./public/floor.glb',       TileType.ROCK,   null],
+                ['./public/wall-gate.glb',   TileType.DOOR,      './public/Textures/colormap3.png'],
+            ],
+            arena: [
+                ['./public/wall.glb',                   TileType.WALL,      null],
+                ['./public/alternate-floor.glb',        TileType.FLOOR,      './public/Textures/colormap3.png'],
+                ['./public/alternate-floor-detail.glb', TileType.PEBBLES,   './public/Textures/colormap3.png'],
+                ['./public/floor.glb',                  TileType.ROCK,   null],
+                ['./public/wall-gate.glb',              TileType.DOOR,      './public/Textures/colormap3.png'],
+
+            ]
+          }
+
+
+          /*
         // Duplicates are to ensure no holes in dungeon for now
         await Promise.all([
             loadModel('./public/wall.glb', TileType.WALL),
@@ -61,9 +81,15 @@ export class Dungeon {
             loadModel('./public/alternate-floor-detail.glb', TileType.PEBBLES, './public/Textures/colormap3.png'),
             loadModel('./public/floor.glb', TileType.ROCK),
             loadModel('./public/wall.glb', TileType.WALL),
-            loadModel('./public/wall-opening.glb', TileType.DOOR_WAY),
-            loadModel('./public/gate.glb', TileType.DOOR),
+            //loadModel('./public/wall-opening.glb', TileType.DOOR_WAY),
+            loadModel('./public/wall-gate.glb', TileType.DOOR, './public/Textures/colormap3.png'),
         ]);
+        */
+       const defs = themes[this.theme] || themes.default;
+
+       await Promise.all(defs.map(([url, key, cmap]) => 
+            loadModel(url, key, cmap)
+        ));
 
         return modelMap;
     }
@@ -285,15 +311,21 @@ export class Dungeon {
             } while (this.denseMatrix[ey][ex] !== TileType.FLOOR);
 
             if (spawnHardEnemy) {
-                //let hardEnemy = new Enemy("./public/character-orc.glb","Orc", 50, ex, ey, 10); // ID, HP, x, y, atk, agro
-                let hardEnemy = new Enemy ("./public/character-soldier.glb",
-                    "Legion Grunt",
-                    60, ex, ey, 10, 15,
-                    {
-                        scale: TILE_SIZE, 
-                        height: 0, 
-                        colormap: "./public/Textures/colormap3.png"
-                    });
+                let hardEnemy;
+                if (this.theme === 'arena') {
+                    hardEnemy = new Enemy("./public/character-soldier.glb",
+                        "Legion Grunt",
+                        60, ex, ey, 10, 15,
+                        {
+                            scale: TILE_SIZE, 
+                            height: 0, 
+                            colormap: "./public/Textures/colormap3.png"
+                        });
+                } else {
+                    hardEnemy = new Enemy("./public/character-orc.glb",
+                        "Orc Warrior",
+                        50, ex, ey, 8, 10,);
+                }
                 this.sparseMatrix.push(hardEnemy);
             } else {
                 let easyEnemy = new Enemy("./public/character-zombie.glb",
@@ -400,6 +432,7 @@ export class Dungeon {
 
     async generateDungeon() {
         this.denseMatrix = this.createEmptyMatrix();
+        this.theme = (Math.random() < 0.25 ? 'arena' : 'default'); // should make this generally happen only at one point
         this.sparseMatrix = [];
         this.dungeonRooms = [];
 
