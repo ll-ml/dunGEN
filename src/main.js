@@ -116,7 +116,7 @@ await Promise.all(
 let combatMgr = new CombatManager();
 combatMgr.onDeath = ({ winner, loser, hit, damage}) => {
   const deadObj = loser.owner; 
-  if (deadObj instanceof Enemy && deadObj.id === 'Orc' && Math.random() < 0.1) {
+  if (deadObj instanceof Enemy && deadObj.id === 'Orc' && Math.random() < 0.2) {
     const { x, y } = deadObj.coords;
     const lootChest = new StorageItem(
       "Wooden Chest",
@@ -279,7 +279,7 @@ renderer.domElement.addEventListener('contextmenu', e => {
         dungeon.denseMatrix
       );
 
-      await dungeon.generateDungeon();
+      await dungeon.generateDungeon(player);
 
       const modelMap = await dungeon.loadModelMap();
 
@@ -287,7 +287,7 @@ renderer.domElement.addEventListener('contextmenu', e => {
       addAddtionalItems();
       player = dungeon.player;
       target.copy(player.model.position);
-      player.inventory = [];
+      //player.inventory = [];
       setupInventoryContext(player, dungeon);
       renderInventory(player.inventory);
       combatMgr = new CombatManager();

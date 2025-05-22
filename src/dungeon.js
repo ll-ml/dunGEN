@@ -297,6 +297,23 @@ export class Dungeon {
         this.sparseMatrix.push(player); // just push them on the sparse matrix
     }
 
+    placePlayer(existingPlayer) {
+        this.sparseMatrix.splice(0, 1);
+      
+        const room = this.dungeonRooms[
+          this.randInt(0, this.dungeonRooms.length - 1)
+        ];
+        const px = this.randInt(room.x + 1, room.x + room.width  - 2);
+        const pz = this.randInt(room.y + 1, room.y + room.height - 2);
+      
+        existingPlayer.coords.set(px, pz);
+        existingPlayer.updatePosition();
+      
+        this.sparseMatrix.unshift(existingPlayer);
+      
+        return existingPlayer;
+      }
+
     spawnEnemies() {
         for (let i = 0; i < 4; i++) {
             const spawnRoll = Math.random();
@@ -430,7 +447,7 @@ export class Dungeon {
 
 
 
-    async generateDungeon() {
+    async generateDungeon(player = null) {
         this.denseMatrix = this.createEmptyMatrix();
         this.theme = (Math.random() < 0.25 ? 'arena' : 'default'); // should make this generally happen only at one point
         this.sparseMatrix = [];
@@ -446,7 +463,12 @@ export class Dungeon {
         this.spawnLoot();
 
 
-        await this.spawnPlayer();
+        if (player) {
+            console.log('Place player has been called');
+            this.placePlayer(player);
+        } else {
+            await this.spawnPlayer();
+        }
 
         this.spawnEnemies();
     }
