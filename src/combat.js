@@ -71,7 +71,8 @@ export class CombatSession {
     this.turn = 1 - this.turn;
     if (died) {
       this.active = false;
-      return { winner: this.a, loser: this.b, hit, damage };
+      //return { winner: this.a, loser: this.b, hit, damage };
+      return { winner: attacker, loser: defender, hit, damage };
     }
     return null;
   }

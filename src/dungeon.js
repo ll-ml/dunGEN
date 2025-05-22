@@ -389,9 +389,9 @@ export class Dungeon {
         }
 
          // If player gets bad RNG force a spawn for at least one loot barrel
-         if (!anySpawned && this.dungeonRooms.length) {
+         if (this.dungeonRooms.length) {
             const fallbackRoom = this.dungeonRooms[
-                this.randInt(0, this.dungeonRooms.length)
+                this.randInt(0, this.dungeonRooms.length - 1)
             ]
 
             const { x, y } = randomFloorInRoom(fallbackRoom);
@@ -460,15 +460,13 @@ export class Dungeon {
         this.connectRooms();
         this.placeDoors();
 
-        this.spawnLoot();
-
-
         if (player) {
-            console.log('Place player has been called');
             this.placePlayer(player);
         } else {
             await this.spawnPlayer();
         }
+
+        this.spawnLoot();
 
         this.spawnEnemies();
     }

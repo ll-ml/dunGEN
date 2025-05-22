@@ -17,7 +17,7 @@ export class Player extends DungeonObject {
    * @param {number} startX  grid‑column
    * @param {number} startZ  grid‑row
    */
-  constructor(startX, startZ, hp = 100.0) {
+  constructor(startX, startZ, hp = 30.0) {
     super('./public/character-human.glb',
        startX, 
        startZ, {
@@ -26,6 +26,7 @@ export class Player extends DungeonObject {
        }); // Load the player in. 
     this.path = [];
     this.hp = hp;
+    this.maxHealth = 30.0;
     this._targetWorldPos = null; // Type THREE.Vector3
     this.moveSpeed = TILE_SIZE * 4;
     this.inventory = [];
@@ -62,18 +63,23 @@ export class Player extends DungeonObject {
     const idleClip = findClip('idle');
     const walkClip = findClip('walk');
     const attackClip = findClip('attack-melee-right');
+    const dieClip = findClip('die');
 
-    if (!idleClip || !walkClip || !attackClip) {
-      console.warn('Could not find idle/walk clips for player model', idleClip, walkClip);
+    if (!idleClip || !walkClip || !attackClip || !dieClip) {
+      console.warn('Could not find idle/walk or die clips for player model', idleClip, walkClip);
       return;
     }
 
     this.actions.idle = this.mixer.clipAction(idleClip);
     this.actions.walk = this.mixer.clipAction(walkClip);
     this.actions.attack = this.mixer.clipAction(attackClip);
+    this.actions.die = this.mixer.clipAction(dieClip);
 
     this.actions.attack.setLoop(THREE.LoopOnce, 1);
     this.actions.attack.clampWhenFinished = true;
+
+    this.actions.die.setLoop(THREE.LoopOnce, 1);
+    this.actions.die.clampWhenFinished = true;
 
     this.currentAction = this.actions.idle;
     this.currentAction.play();
@@ -382,7 +388,7 @@ export class Player extends DungeonObject {
   }
 
   die() {
-    console.log('Player has been slain');
+    this._playAction('die');
   }
 
   async approachAndFight(enemy, tiles, combatMgr) {

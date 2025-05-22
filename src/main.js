@@ -37,9 +37,9 @@ const perspCam = new THREE.PerspectiveCamera(
 const target = new THREE.Vector3(0, 0, 0);
 
 // Spherical coordinates for the camera
-let phi = 0;            // horizontal angle
-let theta = 1;          // vertical angle (in radians)
-let radius = 100;       // distance from the target
+let phi = 0;
+let theta = 1;
+let radius = 50;
 
 // Variables for mouse drag control
 let isMiddleMouseDown = false;
@@ -63,7 +63,6 @@ window.addEventListener("mouseup", (e) => {
   }
 });
 
-// Update camera angles when moving the mouse (only if middle button is held)
 window.addEventListener("mousemove", (e) => {
   if (!isMiddleMouseDown) return;
   
@@ -86,7 +85,7 @@ window.addEventListener("mousemove", (e) => {
 window.addEventListener("wheel", (e) => {
   const zoomSpeed = 0.2;
   radius += e.deltaY * zoomSpeed;
-  radius = Math.max(50, Math.min(250, radius));
+  radius = Math.max(50, Math.min(100, radius));
 });
 
 const scene = new THREE.Scene();
@@ -116,7 +115,7 @@ await Promise.all(
 let combatMgr = new CombatManager();
 combatMgr.onDeath = ({ winner, loser, hit, damage}) => {
   const deadObj = loser.owner; 
-  if (deadObj instanceof Enemy && deadObj.id === 'Orc' && Math.random() < 0.2) {
+  if (deadObj instanceof Enemy) {
     const { x, y } = deadObj.coords;
     const lootChest = new StorageItem(
       "Wooden Chest",
@@ -152,6 +151,57 @@ function addAddtionalItems() {
 }
 
 let player = dungeon.player;
+
+const deathModal = document.getElementById('deathModal');
+const newCharBtn = document.getElementById('newCharBtn');
+
+newCharBtn.onclick = async () => {
+  deathModal.classList.add('hidden');
+
+  await dungeon.generateDungeon();
+
+  player = dungeon.player;
+  player.combat.onDie = () => {
+    player._playAction('die');
+    deathModal.classList.remove('hidden');
+  };
+
+  const modelMap = await dungeon.loadModelMap();
+  buildDungeon(scene, modelMap, dungeon.denseMatrix);
+  addAddtionalItems();
+
+  setupInventoryContext(player, dungeon);
+  renderInventory(player.inventory);
+
+  target.copy(player.model.position);
+  const sinT = Math.sin(theta);
+  const camX = target.x + radius * sinT * Math.cos(phi);
+  const camZ = target.z + radius * sinT * Math.sin(phi);
+  const camY = target.y + radius * Math.cos(theta);
+  perspCam.position.set(camX, camY, camZ);
+  perspCam.lookAt(target);
+
+  combatMgr = new CombatManager(dungeon.sparseMatrix, scene);
+  combatMgr.onDeath = ({ winner, loser, hit, damage }) => {
+    const deadObj = loser.owner;
+    if (deadObj instanceof Enemy) {
+      const { x, y } = deadObj.coords;
+      const lootChest = new StorageItem(
+        "Wooden Chest",
+        x, y,
+        [],
+        { glbPath: './public/chest.glb' }
+      );
+      dungeon.sparseMatrix.push(lootChest);
+      lootChest.addTo(scene);
+    }
+  };
+};
+
+player.combat.onDie = () => {
+  player._playAction('die');
+  deathModal.classList.remove('hidden');
+};
 
 const halfWpx = dungeonPixelWidth  / 2;
 const halfHpz = dungeonPixelHeight / 2;
@@ -287,13 +337,12 @@ renderer.domElement.addEventListener('contextmenu', e => {
       addAddtionalItems();
       player = dungeon.player;
       target.copy(player.model.position);
-      //player.inventory = [];
       setupInventoryContext(player, dungeon);
       renderInventory(player.inventory);
       combatMgr = new CombatManager();
       combatMgr.onDeath = ({ winner, loser, hit, damage}) => {
         const deadObj = loser.owner; 
-        if (deadObj instanceof Enemy && deadObj.id === 'Orc' && Math.random() < 0.1) {
+        if (deadObj instanceof Enemy) {
           const { x, y } = deadObj.coords;
           const lootChest = new StorageItem(
             "Wooden Chest",
@@ -368,16 +417,8 @@ setupInventoryContext(player, dungeon);
 
 
 const health = document.getElementById('hp');
-/*
-let lastHp = player.combat.hp;
-tickManager.onTick(() => {
-  if (player.combat.hp !== lastHp) {
-    hpEl.textContent = player.combat.hp;
-    lastHp = player.combat.hp;
-  }
-});
-This could be nice
-*/
+const maxHealth = document.getElementById('maxHp');
+maxHealth.textContent = player.maxHealth;
 
 tickManager.onTick((dtMS) => {
   const dt = dtMS / 1000;
@@ -394,7 +435,7 @@ tickManager.onTick((dtMS) => {
 
     if (dist === 1 && !e.inCombat) {
       e.inCombat = true;
-      combatMgr.engage(player.combat, e.combat);
+      combatMgr.engage(e.combat, player.combat); // fix comabt api call
     }
     else if (dist !== 1 && e.inCombat) {
       e.inCombat = false;
