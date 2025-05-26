@@ -150,7 +150,19 @@ function addAddtionalItems() {
   });
 }
 
+function updateSkillsUI(player) {
+  const bar = document.getElementById("skillsBar");
+  bar.innerHTML = ""; // clear
+  for (const [name, skill] of Object.entries(player.skills.skills)) {
+    const el = document.createElement("div");
+    el.className = "skill";
+    el.textContent = `${name} Lv.${skill.level}`;
+    bar.appendChild(el);
+  }
+}
+
 let player = dungeon.player;
+updateSkillsUI(player);
 
 const deathModal = document.getElementById('deathModal');
 const newCharBtn = document.getElementById('newCharBtn');
@@ -301,6 +313,7 @@ renderer.domElement.addEventListener('contextmenu', e => {
     searchStorage.onclick = async () => {
       ctxMenu.style.display = 'none';
       // TODO make this better and not buggy
+      player.skills.gainXp("Looting", 100);
       const barrelLoc = new THREE.Vector2(storage.coords.x, storage.coords.y);
       if (player.coords.manhattanDistanceTo(barrelLoc) <= 2) {
         openStorageModal(storage);
@@ -424,6 +437,7 @@ tickManager.onTick((dtMS) => {
   const dt = dtMS / 1000;
 
   health.textContent = player.combat.hp;
+  updateSkillsUI(player);
 
   for (const e of dungeon.sparseMatrix) {
     if (!(e instanceof Enemy)) continue;
