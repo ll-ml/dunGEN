@@ -24,7 +24,7 @@ export const lootTables = {
     ],
     uncommon: [
       { item: new InventoryItem("Cake",  "Cake",    "./Items/cake.png",  "An entire cake."), weight: 40 },
-      { item: new InventoryItem("Coconut",  "This coconut has mystical qualities","./Items/potion.png","Restores HP."), weight: 10 },
+      { item: new InventoryItem("Coconut",  "Coconut","./Items/coconut.png","Restores HP."), weight: 10 },
     ],
     rare: [
       { item: new InventoryItem("Coins","100 Coins",   "./Items/coin.png","Heavier than you thought."),       weight: 1 },

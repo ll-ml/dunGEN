@@ -10,6 +10,7 @@ import { renderInventory, setupInventoryContext } from './inventory.js';
 import { StorageItem } from './storageItem.js'
 import { initDamageDisplay } from './damageDisplay.js';
 
+
 const tickManager = new TickManager(600);
 const clock = new THREE.Clock();
 
@@ -91,7 +92,6 @@ window.addEventListener("wheel", (e) => {
 const scene = new THREE.Scene();
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-//renderer.setClearColor(0x222222, 1)
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setClearColor(0x222222, 1);
 document.body.appendChild(renderer.domElement);
@@ -150,19 +150,9 @@ function addAddtionalItems() {
   });
 }
 
-function updateSkillsUI(player) {
-  const bar = document.getElementById("skillsBar");
-  bar.innerHTML = ""; // clear
-  for (const [name, skill] of Object.entries(player.skills.skills)) {
-    const el = document.createElement("div");
-    el.className = "skill";
-    el.textContent = `${name} Lv.${skill.level}`;
-    bar.appendChild(el);
-  }
-}
-
 let player = dungeon.player;
-updateSkillsUI(player);
+player.skills.initDungeon(dungeon);
+//updateSkillsUI(player);
 
 const deathModal = document.getElementById('deathModal');
 const newCharBtn = document.getElementById('newCharBtn');
@@ -433,11 +423,10 @@ const health = document.getElementById('hp');
 const maxHealth = document.getElementById('maxHp');
 maxHealth.textContent = player.maxHealth;
 
-tickManager.onTick((dtMS) => {
-  const dt = dtMS / 1000;
+tickManager.onTick(() => {
 
   health.textContent = player.combat.hp;
-  updateSkillsUI(player);
+  player.skills.updateUI();
 
   for (const e of dungeon.sparseMatrix) {
     if (!(e instanceof Enemy)) continue;

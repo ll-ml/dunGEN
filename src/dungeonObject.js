@@ -99,24 +99,19 @@ export class DungeonObject {
     const wy = this.height;
     this.model.position.set(wx, wy, wz);
 
-    // now push that movement into the hitbox
     this._recomputeBox();
-    // for debugging
     this.helper.box.copy(this.hitbox);
     this.helper.updateMatrixWorld(true);
   }
 
-  // shared routine to rebuild the Box3 from all Mesh children
   _recomputeBox() {
     this.model.updateWorldMatrix(true, false);
     this.hitbox.makeEmpty();
     this.model.traverse(o => {
       if (o.isMesh) {
-        // ensure geometry bbox is computed
         if (!o.geometry.boundingBox) {
           o.geometry.computeBoundingBox();
         }
-        // take the mesh’s local bbox, bring into world‐space
         const mb = o.geometry.boundingBox.clone();
         mb.applyMatrix4(o.matrixWorld);
         this.hitbox.union(mb);

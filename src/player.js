@@ -4,7 +4,7 @@ import { TileType } from './types.js';
 import { InventoryItem } from './inventory.js';
 import { Enemy } from './enemy.js';
 import { Combatant } from './combat.js';
-import { SkillManager, DEFAULT_SKILLS } from "./skills.js";
+import { SkillManager } from "./skills.js";
 
 
 const TILE_SIZE = 11;
@@ -28,7 +28,7 @@ export class Player extends DungeonObject {
     this.path = [];
     this.hp = hp;
 
-    this.skills = new SkillManager(DEFAULT_SKILLS);
+    this.skills = new SkillManager();
     
     this.maxHealth = 30.0;
     this._targetWorldPos = null; // Type THREE.Vector3

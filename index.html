@@ -179,15 +179,23 @@
     }
 
     .skills-bar .skill.level-up {
-        animation: pulse 0.6s ease-out;
+        animation: glow 1s ease-in-out;
     }
 
-    @keyframes pulse {
-        0%   { transform: scale(1.0); }
-        50%  { transform: scale(1.2); }
-        100% { transform: scale(1.0); }
+    @keyframes glow {
+        0% {
+            box-shadow: 0 0 0px rgba(255, 223, 0, 0);
+        }
+        50% {
+            box-shadow:
+            0 0 8px rgba(255, 223, 0, 0.8),
+            0 0 16px rgba(255, 223, 0, 0.6),
+            0 0 24px rgba(255, 223, 0, 0.4);
+        }
+        100% {
+            box-shadow: 0 0 0px rgba(255, 223, 0, 0);
+        }
     }
-
 </style>
 </head>
 <body>
@@ -200,7 +208,53 @@
         <div class="stat">HP: <span id="hp">100</span>/<span id="maxHp">100</span></div>
     </div>
     <div id="skills">Skills</div>
-    <div id="skillsBar" class="skills-bar"></div>
+    <div id="skillsBar" class="skills-bar">
+        <div class="skill" data-skill="Attack">
+          <span class="skill-name">Attack</span>
+          <span class="skill-level">1</span>
+          <span class="skill-xp">0/100</span>
+        </div>
+        <div class="skill" data-skill="Defense">
+          <span class="skill-name">Defense</span>
+          <span class="skill-level">1</span>
+          <span class="skill-xp">0/100</span>
+        </div>
+        <div class="skill" data-skill="Hitpoints">
+          <span class="skill-name">Hitpoints</span>
+          <span class="skill-level">1</span>
+          <span class="skill-xp">0/100</span>
+        </div>
+        <div class="skill" data-skill="Looting">
+          <span class="skill-name">Looting</span>
+          <span class="skill-level">1</span>
+          <span class="skill-xp">0/100</span>
+        </div>
+        <div class="skill" data-skill="Crafting">
+          <span class="skill-name">Crafting</span>
+          <span class="skill-level">1</span>
+          <span class="skill-xp">0/100</span>
+        </div>
+        <div class="skill" data-skill="Magic">
+          <span class="skill-name">Magic</span>
+          <span class="skill-level">1</span>
+          <span class="skill-xp">0/100</span>
+        </div>
+        <div class="skill" data-skill="Firemaking">
+          <span class="skill-name">Firemaking</span>
+          <span class="skill-level">1</span>
+          <span class="skill-xp">0/100</span>
+        </div>
+        <div class="skill" data-skill="Ranged">
+          <span class="skill-name">Ranged</span>
+          <span class="skill-level">1</span>
+          <span class="skill-xp">0/100</span>
+        </div>
+        <div class="skill" data-skill="Cooking">
+          <span class="skill-name">Cooking</span>
+          <span class="skill-level">1</span>
+          <span class="skill-xp">0/100</span>
+        </div>
+      </div>      
     <div id="inventoryItems">
         <div class="slot"></div>
         <div class="slot"></div>
