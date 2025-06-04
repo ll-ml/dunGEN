@@ -4,13 +4,24 @@ export class InventoryItem {
  * @param {string} name - The display name of the item.
  * @param {string} imagePath - Path to the item's image.
  * @param {string} description - A brief description of the item.
+ * @param {string} type - Type qualifier for given item
+ * @param {function} [onUse] - callback(player, dungeon): what happens when player “uses” it {
+  
+ }}
  */
 
-  constructor(id, name, imagePath, description) {
+  constructor(id, name, imagePath, description, type, onUse) {
       this.id = id;
       this.name = name;
       this.imagePath = imagePath;
       this.description = description;
+      this.type = type || 'default'; // I think having food default for now could work.
+
+      this.onUse = typeof onUse === "function"
+        ? onUse
+        : () => {
+          console.warn(`InventoryItem(${this.id}) has no onUse callback.`);
+        };
   }
 }
 
@@ -70,11 +81,9 @@ export function setupInventoryContext(player, dungeon) {
           {
             label: `Use ${item.name}`,
             onClick: () => {
-              // example:
+              item.onUse(player, dungeon);
               player.inventory.splice(idx, 1);
               renderInventory(player.inventory);
-              player.combat.hp += 5;
-              dungeon.addStatus(`You consume ${item.name} for +5 HP.`);
             }
           },
           {
