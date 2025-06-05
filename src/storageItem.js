@@ -16,3 +16,16 @@ export class StorageItem extends DungeonObject {
     this.contents = contents.slice(0, 3);
   }
 }
+
+export class DroppedItem extends DungeonObject {
+  /**
+   * @param {string}    id
+   * @param {number}    x, y   tile coords
+   * @param {InventoryItem[]} contents  up to N items
+   * @param {Object}    opts   optional { glbPath, scale, height }
+   */
+  constructor(id, x, y, glbPath) {
+    super(glbPath, x, y);
+    this.id = id;
+  }
+}

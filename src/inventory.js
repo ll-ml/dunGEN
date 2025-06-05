@@ -1,3 +1,5 @@
+import { DroppedItem } from "./storageItem";
+
 export class InventoryItem {
   /**
  * @param {string} id - Unique identifier for the item.
@@ -64,7 +66,7 @@ export function showCtxMenu(items, x, y) {
     menu.style.display = 'block';
 }
 
-export function setupInventoryContext(player, dungeon) {
+export function setupInventoryContext(player, dungeon, scene) {
     renderInventory(player.inventory);
   
 
@@ -95,6 +97,16 @@ export function setupInventoryContext(player, dungeon) {
           {
             label: `Drop ${item.name}`,
             onClick: () => {
+              const glbPath = item.imagePath.substring(0, item.imagePath.lastIndexOf('.')) + '.glb';
+              const itemModel = new DroppedItem(item.id, player.coords.x, player.coords.y, glbPath);
+              dungeon.sparseMatrix.push(itemModel);
+              itemModel.addTo(scene)
+                .then(model => {
+                  itemModel.inScene = true;
+                })
+                .catch(err => {
+                  console.error("Failed to add dropped item into scene", err)
+                });
               player.inventory.splice(idx, 1);
               renderInventory(player.inventory);
             }

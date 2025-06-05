@@ -172,7 +172,7 @@ newCharBtn.onclick = async () => {
   buildDungeon(scene, modelMap, dungeon.denseMatrix);
   addAddtionalItems();
 
-  setupInventoryContext(player, dungeon);
+  setupInventoryContext(player, dungeon, scene);
   renderInventory(player.inventory);
 
   target.copy(player.model.position);
@@ -340,7 +340,7 @@ renderer.domElement.addEventListener('contextmenu', e => {
       addAddtionalItems();
       player = dungeon.player;
       target.copy(player.model.position);
-      setupInventoryContext(player, dungeon);
+      setupInventoryContext(player, dungeon, scene);
       renderInventory(player.inventory);
       combatMgr = new CombatManager();
       combatMgr.onDeath = ({ winner, loser, hit, damage}) => {
@@ -415,7 +415,7 @@ renderer.domElement.addEventListener('contextmenu', e => {
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') ctxMenu.style.display = 'none'; });
 
-setupInventoryContext(player, dungeon);
+setupInventoryContext(player, dungeon, scene);
 
 
 
