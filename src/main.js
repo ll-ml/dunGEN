@@ -7,7 +7,7 @@ import { CombatManager } from './combat.js';
 import { buildDungeon } from './render.js';
 import { FrameCounter } from './fpsCounter.js';
 import { renderInventory, setupInventoryContext } from './inventory.js';
-import { StorageItem } from './storageItem.js'
+import { DroppedItem, StorageItem } from './storageItem.js'
 import { initDamageDisplay } from './damageDisplay.js';
 
 
@@ -365,16 +365,29 @@ renderer.domElement.addEventListener('contextmenu', e => {
   }
 
  let enemy = null;
+ let droppedItem = null;
  for (const obj of dungeon.sparseMatrix) {
-  if (!(obj instanceof Enemy) || !obj.hitbox) continue;
-  obj.hitbox.setFromObject(obj.model);
-  if (raycaster.ray.intersectBox(obj.hitbox, new THREE.Vector3())) {
-    enemy = obj;
-    break;
+  if (obj instanceof Enemy && obj.hitbox) {
+    obj.hitbox.setFromObject(obj.model);
+    if (raycaster.ray.intersectBox(obj.hitbox, new THREE.Vector3())) {
+      enemy = obj;
+      break;
+    }
+  } else if (obj instanceof DroppedItem && obj.hitbox) {
+    obj.hitbox.setFromObject(obj.model);
+    if (raycaster.ray.intersectBox(obj.hitbox, new THREE.Vector3())) {
+      droppedItem = obj;
+      break;
+    }
   }
  }
 
   if (hits.length > 0) {
+    if (droppedItem) {
+      const pickItem = document.createElement('li');
+      pickItem.textContent = `Pick up ${droppedItem.id}`;
+      ctxMenu.append(pickItem);
+    }
 
     if (enemy) {
       const fight = document.createElement('li');
