@@ -25,7 +25,11 @@ export class DroppedItem extends DungeonObject {
    * @param {Object}    opts   optional { glbPath, scale, height }
    */
   constructor(id, x, y, glbPath) {
-    super(glbPath, x, y);
+    super(glbPath, x, y,
+      {
+        scale: TILE_SIZE / 2
+      }
+    );
     this.id = id;
   }
 }

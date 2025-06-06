@@ -248,6 +248,7 @@ function renderStorage(chest) {
       // take the item
       player.inventory.push(item);
       dungeon.addStatus(`You take ${item.name}.`);
+      player.skills.gainXp("Looting", 1);
       chest.contents.splice(idx,1);
       renderStorage(chest);
       renderInventory(player.inventory);
@@ -302,8 +303,6 @@ renderer.domElement.addEventListener('contextmenu', e => {
     searchStorage.textContent = 'Search ' + storage.id;
     searchStorage.onclick = async () => {
       ctxMenu.style.display = 'none';
-      // TODO make this better and not buggy
-      player.skills.gainXp("Looting", 100);
       const barrelLoc = new THREE.Vector2(storage.coords.x, storage.coords.y);
       if (player.coords.manhattanDistanceTo(barrelLoc) <= 2) {
         openStorageModal(storage);
