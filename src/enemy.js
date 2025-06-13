@@ -3,10 +3,9 @@ import { TileType } from './types.js';
 import { DungeonObject } from './dungeonObject.js';
 import { Combatant } from './combat.js';
 import { PriorityQueue } from './pq.js'
-import { showDamage } from './damageDisplay.js';
 
 const TILE_SIZE = 11;
-const WIDTH      = 40;   // match your main.js
+const WIDTH      = 40;
 const HEIGHT     = 30;
 const dungeonPixelWidth  = WIDTH  * TILE_SIZE;
 const dungeonPixelHeight = HEIGHT * TILE_SIZE;
@@ -116,9 +115,7 @@ _idleStepFrom(from, tiles) {
  */
 think(playerCoords, tiles) {
   if (!this.model || this._isDying || this.readyToRemove) return; // Probably needs a loading screen at some point
-  const manhattan =
-    Math.abs(this.coords.x - playerCoords.x) +
-    Math.abs(this.coords.y - playerCoords.y);
+  const manhattan = this.getDistanceTo(playerCoords);
 
   if (manhattan <= this.agroRange) {
     // chase
@@ -163,6 +160,18 @@ think(playerCoords, tiles) {
   }
 }
 
+  tileToWorld(tileCoords) {
+    return new THREE.Vector3(
+      -dungeonPixelWidth / 2 + tileCoords.x * TILE_SIZE + TILE_SIZE / 2,
+      this.height,
+      -dungeonPixelHeight / 2 + tileCoords.y * TILE_SIZE + TILE_SIZE / 2
+    );
+  }
+
+  getDistanceTo(targetCoords) {
+    return this.coords.manhattanDistanceTo(targetCoords);
+  }
+
   _advanceTarget() {
     if (this.path.length === 0) {
       this._targetWorldPos = null;
@@ -170,11 +179,14 @@ think(playerCoords, tiles) {
     }
 
     const next = this.path[0];
+    this._targetWorldPos = this.tileToWorld(next);
+    /* old code left in for now
     this._targetWorldPos = new THREE.Vector3(
       -dungeonPixelWidth/2 + next.x * TILE_SIZE + TILE_SIZE/2,
       this.height, 
       -dungeonPixelHeight/2+ next.y * TILE_SIZE + TILE_SIZE/2
     );
+    */
 
     this.model.lookAt(
       this._targetWorldPos.x,
@@ -337,7 +349,7 @@ think(playerCoords, tiles) {
   }
 
   canWalk(tile) {
-    return tile !== TileType.WALL && tile !== TileType.WATER & tile !== TileType.DIRT && tile !== TileType.PEBBLE_DIRT && tile !== TileType.ROCK_DIRT;
+    return tile !== TileType.WALL && tile !== TileType.WATER && tile !== TileType.DIRT && tile !== TileType.PEBBLE_DIRT && tile !== TileType.ROCK_DIRT;
   }
 
   die() {
