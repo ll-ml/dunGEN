@@ -122,10 +122,12 @@ think(playerCoords, tiles) {
     this.moveSpeed = this.chaseSpeed;
     const step = this.tryMove(playerCoords, tiles);
     // Look at the player
+    const playerCoordsWorld = this.tileToWorld(playerCoords);
     this.model.lookAt(
-      -dungeonPixelWidth / 2 + playerCoords.x * TILE_SIZE + TILE_SIZE / 2,
+      playerCoordsWorld.x,
       this.model.position.y,
-      -dungeonPixelHeight / 2 + playerCoords.y * TILE_SIZE + TILE_SIZE / 2
+      playerCoordsWorld.z
+      
     );
     if (!step.equals(this.coords)) {
       this.path = [ step ];

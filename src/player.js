@@ -68,6 +68,7 @@ export class Player extends DungeonObject {
     const walkClip = findClip('walk');
     const attackClip = findClip('attack-melee-right');
     const dieClip = findClip('die');
+    const interact = findClip('interact-right');
 
     if (!idleClip || !walkClip || !attackClip || !dieClip) {
       console.warn('Could not find idle/walk or die clips for player model', idleClip, walkClip);
@@ -78,12 +79,16 @@ export class Player extends DungeonObject {
     this.actions.walk = this.mixer.clipAction(walkClip);
     this.actions.attack = this.mixer.clipAction(attackClip);
     this.actions.die = this.mixer.clipAction(dieClip);
+    this.actions.interact = this.mixer.clipAction(interact);
 
     this.actions.attack.setLoop(THREE.LoopOnce, 1);
     this.actions.attack.clampWhenFinished = true;
 
     this.actions.die.setLoop(THREE.LoopOnce, 1);
     this.actions.die.clampWhenFinished = true;
+
+    this.actions.interact.setLoop(THREE.LoopOnce, 1);
+    this.actions.interact.clampWhenFinished = true;
 
     this.currentAction = this.actions.idle;
     this.currentAction.play();
@@ -396,24 +401,26 @@ export class Player extends DungeonObject {
     this._playAction('die');
   }
 
+  interact() {
+    this._playAction('interact');
+  }
+
   async approachAndFight(enemy, tiles, combatMgr) {
     while (true) {
-    const ply = this.coords;
-    const entityPos = enemy.coords;
 
-    const mDist = Math.abs(ply.x - entityPos.x) + Math.abs(ply.y - entityPos.y);
+    const dist = this.coords.manhattanDistanceTo(enemy.coords);
 
-    if (mDist === 1) {
+    if (dist === 1) {
         this.model.lookAt(
-          -dungeonPixelWidth / 2 + entityPos.x * TILE_SIZE + TILE_SIZE / 2,
+          -dungeonPixelWidth / 2 + enemy.coords.x * TILE_SIZE + TILE_SIZE / 2,
           this.model.position.y,
-          -dungeonPixelHeight / 2 + entityPos.y * TILE_SIZE + TILE_SIZE / 2
+          -dungeonPixelHeight / 2 + enemy.coords.y * TILE_SIZE + TILE_SIZE / 2
         );
         combatMgr.engage(this.combat, enemy.combat);
         return;
       }
 
-      const nextStep = this.tryMove(entityPos, tiles);
+      const nextStep = this.tryMove(enemy.coords, tiles);
 
       await this.moveToAsync(nextStep, tiles);
     }
@@ -422,17 +429,6 @@ export class Player extends DungeonObject {
   canWalk(tile) {
     // TODO: Make this better
     return tile !== TileType.WALL && tile !== TileType.WATER && tile !== TileType.DIRT && tile != TileType.PEBBLE_DIRT && tile !== TileType.ROCK_DIRT;
-  }
-  
-  addTestItem() {
-    const warHammer = new InventoryItem(
-      "Lobster",
-      "Uncooked Lobster",
-      "tile_0110.png",
-      "Uncooked Lobster, grants +5 HP"
-    );
-
-    this.inventory.push(warHammer);
   }
 
   isAdjacentToPool(denseMatrix, sparseMatrix) {
