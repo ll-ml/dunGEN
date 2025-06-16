@@ -246,7 +246,8 @@ function renderStorage(chest) {
     img.title = item.name;
     img.onclick = () => {
       // take the item
-      player.inventory.push(item);
+      //player.inventory.push(item);
+      player.addItem(item, 2);
       dungeon.addStatus(`You take ${item.name}.`);
       player.skills.gainXp("Looting", 1);
       chest.contents.splice(idx,1);

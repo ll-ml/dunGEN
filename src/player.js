@@ -34,6 +34,7 @@ export class Player extends DungeonObject {
     this._targetWorldPos = null; // Type THREE.Vector3
     this.moveSpeed = TILE_SIZE * 4;
     this.inventory = [];
+    this.maxInvenotrySlots = 9;
     this.onArrive = null;
 
     this.combat = new Combatant(
@@ -252,6 +253,58 @@ export class Player extends DungeonObject {
     
     // next move towards the player.
     return step;
+  }
+
+  addItem(newItem, quantity = 1) {
+    const itemToAdd = Object.create(
+      Object.getPrototypeOf(newItem),
+      Object.getOwnPropertyDescriptors(newItem)
+    );
+
+    let remaining = quantity;
+
+    if (itemToAdd.stackable) {
+      for (const invItem of this.inventory) {
+        if (remaining <= 0) break;
+
+        if (invItem && invItem.canStackWith(itemToAdd)) {
+          const spaceInStack = invItem.maxStackSize - invItem.quantity; // (const spaceInStack = invItem.maxStackSize - (invItem.quantity || 1);)
+          const toAdd = Math.min(remaining, spaceInStack);
+
+          invItem.quantity = (invItem.quantity || 1) + toAdd;
+          remaining -= toAdd;
+        }
+      }
+    }
+
+    while (remaining > 0 && this.inventory.length < this.maxInvenotrySlots) {
+      const newStack = Object.create(
+        Object.getPrototypeOf(itemToAdd),
+        Object.getOwnPropertyDescriptors(itemToAdd)
+      );
+
+      if (itemToAdd.stackable) {
+        newStack.quantity = Math.min(remaining, itemToAdd.maxStackSize);
+        remaining -= newStack.quantity;
+      } else {
+        newStack.quantity = 1;
+        remaining -= 1;
+      }
+      this.inventory.push(newStack);
+    }
+
+    return quantity - remaining;
+  }
+
+  removeItem(index, quantity = 1) {
+    const item = this.inventory[index];
+    if (!item) return; 
+
+    if (item.quantity && item.quantity > quantity) {
+      item.quantity -= quantity;
+    } else {
+      this.inventory.splice(index, 1);
+    }
   }
   
 

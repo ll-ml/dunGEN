@@ -12,18 +12,28 @@ export class InventoryItem {
  }}
  */
 
-  constructor(id, name, imagePath, description, type, onUse) {
+  constructor(id, name, imagePath, description, type, onUse, stackConfig = {}) {
       this.id = id;
       this.name = name;
       this.imagePath = imagePath;
       this.description = description;
       this.type = type || 'default'; // I think having food default for now could work.
 
+      this.stackable = stackConfig.stackable;
+      this.maxStackSize = stackConfig.maxStackSize;
+      this.quantity = 1;
+
       this.onUse = typeof onUse === "function"
         ? onUse
         : () => {
           console.warn(`InventoryItem(${this.id}) has no onUse callback.`);
         };
+  }
+
+  canStackWith(other) {
+    return this.stackable && 
+            other.stackable &&
+            this.id === other.id;
   }
 }
 
@@ -46,6 +56,14 @@ export function renderInventory(items) {
       img.style.objectFit = 'contain';
   
       slot.appendChild(img);
+
+      // Logic for showing num of stacked items
+      if (item.quantity && item.quantity > 1) {
+        const quantityDisplay = document.createElement('div');
+        quantityDisplay.className = 'item-quantity';
+        quantityDisplay.textContent = item.quantity;
+        slot.append(quantityDisplay);
+      }
     });
 }
 
@@ -68,9 +86,7 @@ export function showCtxMenu(items, x, y) {
 
 export function setupInventoryContext(player, dungeon, scene) {
     renderInventory(player.inventory);
-  
-
-  
+    
     // attach handlers to each slot
     const slots = document.querySelectorAll('#inventoryItems .slot');
     slots.forEach((slot, idx) => {
@@ -107,7 +123,8 @@ export function setupInventoryContext(player, dungeon, scene) {
                 .catch(err => {
                   console.error("Failed to add dropped item into scene", err)
                 });
-              player.inventory.splice(idx, 1);
+              //player.inventory.splice(idx, 1);
+              player.removeItem(idx, 1)
               renderInventory(player.inventory);
             }
           }
