@@ -403,6 +403,7 @@ export class Player extends DungeonObject {
 
   interact() {
     this._playAction('interact');
+    setTimeout(() => this._playAction('idle'), 500);
   }
 
   async approachAndFight(enemy, tiles, combatMgr) {
