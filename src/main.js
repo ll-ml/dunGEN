@@ -9,6 +9,7 @@ import { FrameCounter } from './fpsCounter.js';
 import { renderInventory, setupInventoryContext } from './inventory.js';
 import { DroppedItem, StorageItem } from './storageItem.js'
 import { initDamageDisplay } from './damageDisplay.js';
+import { generateLoot } from './loot.js';
 
 
 const tickManager = new TickManager(600);
@@ -121,7 +122,7 @@ combatMgr.onDeath = ({ winner, loser, hit, damage}) => {
       "Wooden Chest",
       x, 
       y,
-      [],
+      generateLoot(1),
       {
         glbPath: './public/chest.glb'
       }
@@ -245,11 +246,9 @@ function renderStorage(chest) {
     img.src   = item.imagePath;
     img.title = item.name;
     img.onclick = () => {
-      // take the item
-      //player.inventory.push(item);
-      player.addItem(item, 2);
+      player.addItem(item, item.quantity);
       dungeon.addStatus(`You take ${item.name}.`);
-      player.skills.gainXp("Looting", 1);
+      player.skills.gainXp("Looting", 5);
       chest.contents.splice(idx,1);
       renderStorage(chest);
       renderInventory(player.inventory);

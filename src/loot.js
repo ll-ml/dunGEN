@@ -18,16 +18,16 @@ export function generateLoot(count = 1) {
 
 export const lootTables = {
     common: [
-      { item: new InventoryItem("Cheese Wheel",  "Cheese Wheel",  "./Items/cheese.png",  "A wheel of cheese.", "food", (player, dungeon) => { player.combat.hp = Math.min(player.combat.hp + 3, player.maxHealth); player.interact(); dungeon.addStatus("You eat a cheese wheel and recover 3 HP.");}, {quantity: 1, stackable: true, maxStackSize: 99}),      weight: 50 },
-      { item: new InventoryItem("Raw Meat",   "Raw meat", "./Items/meat-raw.png",  "Fresh but raw.", "food", (player, dungeon) => { player.combat.hp = Math.min(player.combat.hp + 5, player.maxHealth); dungeon.addStatus("You consume raw meat in order to recover 5 HP.")}),      weight: 30 },
-      { item: new InventoryItem("Gold Coin",   "Gold coin","./Items/coin.png",  "It glitters."),         weight: 20 },
+      { item: new InventoryItem("Cheese Wheel",  "Cheese Wheel",  "./Items/cheese.png",  "A wheel of cheese.", "food", (player, dungeon) => { player.combat.hp = Math.min(player.combat.hp + 3, player.maxHealth); player.interact(); dungeon.addStatus("You eat a cheese wheel and recover 3 HP.");}, {stackable: true, maxStackSize: 16}),      weight: 50 },
+      { item: new InventoryItem("Raw Meat",   "Raw meat", "./Items/meat-raw.png",  "Fresh but raw.", "food", (player, dungeon) => { player.combat.hp = Math.min(player.combat.hp + 5, player.maxHealth); player.interact(); dungeon.addStatus("You consume raw meat in order to recover 5 HP.")}, {stackable: true, maxStackSize: 16}),      weight: 30 },
+      { item: new InventoryItem("Gold Coin",   "Gold coin","./Items/coin.png",  "It glitters.", "coins", (player, dungeon) =>{ dungeon.addStatus("You take a look at your plunder."); player.interact();}, {stackable: true, maxStackSize: 1000}),         weight: 20 },
     ],
     uncommon: [
-      { item: new InventoryItem("Cake",  "Cake",    "./Items/cake.png",  "An entire cake."), weight: 40 },
-      { item: new InventoryItem("Coconut",  "Coconut","./Items/coconut.png","Restores HP."), weight: 10 },
+      { item: new InventoryItem("Cake",  "Cake",    "./Items/cake.png",  "An entire cake.", "food", (player, dungeon) =>{ player.combat.hp = Math.min(player.combat.hp + 7, player.maxHealth); dungeon.addStatus("You consume the entire cake."); player.interact();}, {stackable: false}), weight: 40 },
+      { item: new InventoryItem("Coconut",  "Coconut","./Items/coconut.png","Restores HP.", "food", (player, dungeon) => { player.combat.hp = Math.min(player.combat.hp + 10, player.maxHealth); dungeon.addStatus("You break open the cocunut and consume it whole."); player.interact();}), weight: 10 },
     ],
     rare: [
-      { item: new InventoryItem("Coins","100 Coins",   "./Items/coin.png","Heavier than you thought."),       weight: 1 },
+      { item: new InventoryItem("Gold Coin",   "Gold coin","./Items/coin.png",  "It glitters.", "coins", (player, dungeon) =>{ dungeon.addStatus("You take a look at your plunder."); player.interact();}, {quantity: 100, stackable: true, maxStackSize: 1000}),       weight: 1 },
     ]
   };
 

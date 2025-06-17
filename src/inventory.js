@@ -21,7 +21,7 @@ export class InventoryItem {
 
       this.stackable = stackConfig.stackable;
       this.maxStackSize = stackConfig.maxStackSize;
-      this.quantity = 1;
+      this.quantity = stackConfig.quantity || 1; // should default to 1
 
       this.onUse = typeof onUse === "function"
         ? onUse
@@ -100,7 +100,10 @@ export function setupInventoryContext(player, dungeon, scene) {
             label: `Use ${item.name}`,
             onClick: () => {
               item.onUse(player, dungeon);
-              player.inventory.splice(idx, 1);
+              if (item.type === "food") {
+                player.removeItem(idx, 1);
+
+              }
               renderInventory(player.inventory);
             }
           },
