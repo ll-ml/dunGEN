@@ -23,13 +23,15 @@ export class DroppedItem extends DungeonObject {
    * @param {number}    x, y   tile coords
    * @param {InventoryItem[]} contents  up to N items
    * @param {Object}    opts   optional { glbPath, scale, height }
+   * @param {Object} self.item the actual item the dropped model represents
    */
-  constructor(id, x, y, glbPath) {
+  constructor(id, x, y, glbPath, item, loc) {
     super(glbPath, x, y,
       {
         scale: TILE_SIZE / 2
       }
     );
     this.id = id;
+    this.item = item;
   }
 }

@@ -1,4 +1,5 @@
 import { DroppedItem } from "./storageItem";
+import { Vector2 } from "three";
 
 export class InventoryItem {
   /**
@@ -117,7 +118,7 @@ export function setupInventoryContext(player, dungeon, scene) {
             label: `Drop ${item.name}`,
             onClick: () => {
               const glbPath = item.imagePath.substring(0, item.imagePath.lastIndexOf('.')) + '.glb';
-              const itemModel = new DroppedItem(item.id, player.coords.x, player.coords.y, glbPath);
+              const itemModel = new DroppedItem(item.id, player.coords.x, player.coords.y, glbPath, item);
               dungeon.sparseMatrix.push(itemModel);
               itemModel.addTo(scene)
                 .then(model => {
@@ -126,7 +127,6 @@ export function setupInventoryContext(player, dungeon, scene) {
                 .catch(err => {
                   console.error("Failed to add dropped item into scene", err)
                 });
-              //player.inventory.splice(idx, 1);
               player.removeItem(idx, 1)
               renderInventory(player.inventory);
             }

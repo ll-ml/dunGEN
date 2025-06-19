@@ -10,6 +10,7 @@ import { renderInventory, setupInventoryContext } from './inventory.js';
 import { DroppedItem, StorageItem } from './storageItem.js'
 import { initDamageDisplay } from './damageDisplay.js';
 import { generateLoot } from './loot.js';
+import { densityFog } from 'three/tsl';
 
 
 const tickManager = new TickManager(600);
@@ -385,6 +386,24 @@ renderer.domElement.addEventListener('contextmenu', e => {
     if (droppedItem) {
       const pickItem = document.createElement('li');
       pickItem.textContent = `Pick up ${droppedItem.id}`;
+      pickItem.onclick = async () => {
+        ctxMenu.style.display = 'none';
+        const pickUpMessage = `You pick up ${droppedItem.item.name}.`;
+        await player.moveToAsync(
+          droppedItem.coords,
+          dungeon.denseMatrix
+        );
+
+        dungeon.addStatus(pickUpMessage);
+        player.addItem(droppedItem.item, 1);
+        scene.remove(droppedItem.model);
+        droppedItem.inScene = false;
+        dungeon.sparseMatrix.splice(
+          dungeon.sparseMatrix.indexOf(droppedItem),
+          1 
+        );
+        renderInventory(player.inventory);
+      }
       ctxMenu.append(pickItem);
     }
 

@@ -169,11 +169,56 @@
         position: absolute;
         transform: translate(-50%, 0);
         font-family: 'DungeonFont', monospace;
-        font-size: 14px;
-        color: #ff4444;
         white-space: nowrap;
+    
+        background: radial-gradient(circle, #ff6666 0%, #cc0000 70%, #990000 100%);
+        color: white;
+        font-size: 18px;
+        font-weight: bold;
+    
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+    
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    
+        border: 2px solid #ffcccc;
+        box-shadow: 
+            0 0 10px rgba(255, 0, 0, 0.8),
+            0 0 20px rgba(255, 0, 0, 0.4),
+            inset 0 0 10px rgba(255, 255, 255, 0.2);
+    
+
+        text-shadow: 
+            1px 1px 2px rgba(0, 0, 0, 0.8),
+            0 0 5px rgba(0, 0, 0, 0.5);
+    
+
         opacity: 1;
-        transition: transform 0.8s ease-out, opacity 0.8s ease-out;
+        animation: damagePop 1s ease-out forwards;
+    }
+
+    @keyframes damagePop {
+        0% {
+            transform: translate(-50%, 0) scale(0.5);
+            opacity: 0;
+        }
+    
+        20% {
+            transform: translate(-50%, -10px) scale(1.2);
+            opacity: 1;
+        }
+    
+        40% {
+            transform: translate(-50%, -20px) scale(1);
+        }
+    
+        100% {
+            transform: translate(-50%, -50px) scale(0.8);
+            opacity: 0;
+        }
     }
 
     .skills-bar {

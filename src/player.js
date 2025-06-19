@@ -5,6 +5,7 @@ import { InventoryItem } from './inventory.js';
 import { Enemy } from './enemy.js';
 import { Combatant } from './combat.js';
 import { SkillManager } from "./skills.js";
+import { instance } from 'three/tsl';
 
 
 const TILE_SIZE = 11;
@@ -309,6 +310,15 @@ export class Player extends DungeonObject {
   
 
   moveTo(dest, tiles, onArrive) {
+    if (!dest || !tiles) {
+      console.error("moveTo called with undefined dest or tiles");
+      return;
+    }
+
+    if (!(dest instanceof THREE.Vector2)) {
+      console.error("dest is invalid type must be Vec2");
+      return;
+    }
     this.path = this.computePath(dest, tiles);
     if (this.path.length === 0) return; // this should get rid of the walking bug
     this._onArrive = onArrive || null;
