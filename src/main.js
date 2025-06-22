@@ -10,7 +10,6 @@ import { renderInventory, setupInventoryContext } from './inventory.js';
 import { DroppedItem, StorageItem } from './storageItem.js'
 import { initDamageDisplay } from './damageDisplay.js';
 import { generateLoot } from './loot.js';
-import { densityFog } from 'three/tsl';
 
 
 const tickManager = new TickManager(600);
@@ -193,7 +192,7 @@ newCharBtn.onclick = async () => {
       const lootChest = new StorageItem(
         "Wooden Chest",
         x, y,
-        [],
+        generateLoot(3),
         { glbPath: './public/chest.glb' }
       );
       dungeon.sparseMatrix.push(lootChest);
@@ -351,7 +350,7 @@ renderer.domElement.addEventListener('contextmenu', e => {
             "Wooden Chest",
             x, 
             y,
-            [],
+            generateLoot(1),
             {
               glbPath: './public/chest.glb'
             }
@@ -458,6 +457,8 @@ tickManager.onTick(() => {
 
   health.textContent = player.combat.hp;
   player.skills.updateUI();
+
+  console.log(dungeon.sparseMatrix.length);
 
   for (const e of dungeon.sparseMatrix) {
     if (!(e instanceof Enemy)) continue;

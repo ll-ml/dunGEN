@@ -25,7 +25,7 @@ export class DroppedItem extends DungeonObject {
    * @param {Object}    opts   optional { glbPath, scale, height }
    * @param {Object} self.item the actual item the dropped model represents
    */
-  constructor(id, x, y, glbPath, item, loc) {
+  constructor(id, x, y, glbPath, item) {
     super(glbPath, x, y,
       {
         scale: TILE_SIZE / 2
