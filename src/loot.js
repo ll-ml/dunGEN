@@ -15,8 +15,8 @@ export function generateLoot(count = 1) {
     return result;
   }
 
-
-export const lootTables = {
+// why was this exported?
+const lootTables = {
     common: [
       { item: new InventoryItem("Cheese Wheel",  "Cheese Wheel",  "./Items/cheese.png",  "A wheel of cheese.", "food", (player, dungeon) => { player.combat.hp = Math.min(player.combat.hp + 3, player.maxHealth); player.interact(); dungeon.addStatus("You eat a cheese wheel and recover 3 HP.");}, {stackable: true, maxStackSize: 16}),      weight: 50 },
       { item: new InventoryItem("Raw Meat",   "Raw meat", "./Items/meat-raw.png",  "Fresh but raw.", "food", (player, dungeon) => { player.combat.hp = Math.min(player.combat.hp + 5, player.maxHealth); player.interact(); dungeon.addStatus("You consume raw meat in order to recover 5 HP.")}, {stackable: true, maxStackSize: 16}),      weight: 30 },

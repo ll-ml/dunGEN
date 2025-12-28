@@ -458,7 +458,6 @@ tickManager.onTick(() => {
   health.textContent = player.combat.hp;
   player.skills.updateUI();
 
-  console.log(dungeon.sparseMatrix.length);
 
   for (const e of dungeon.sparseMatrix) {
     if (!(e instanceof Enemy)) continue;

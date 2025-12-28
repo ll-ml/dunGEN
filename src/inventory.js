@@ -1,5 +1,4 @@
 import { DroppedItem } from "./storageItem";
-import { Vector2 } from "three";
 
 export class InventoryItem {
   /**

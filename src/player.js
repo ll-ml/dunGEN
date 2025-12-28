@@ -491,10 +491,12 @@ export class Player extends DungeonObject {
   }
 
   canWalk(tile) {
-    // TODO: Make this better
-    return tile !== TileType.WALL && tile !== TileType.WATER && tile !== TileType.DIRT && tile != TileType.PEBBLE_DIRT && tile !== TileType.ROCK_DIRT;
+    // lol what even is that
+    //return tile !== TileType.WALL && tile !== TileType.WATER && tile !== TileType.DIRT && tile != TileType.PEBBLE_DIRT && tile !== TileType.ROCK_DIRT;
+    return tile === TileType.FLOOR;
   }
 
+  // this is dead code but i assume i left this in here for some future referece so i wont delete it now
   isAdjacentToPool(denseMatrix, sparseMatrix) {
     const tileX = this.coords.x;
     const tileY = this.coords.y;

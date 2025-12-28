@@ -104,7 +104,6 @@ _idleStepFrom(from, tiles) {
       this.canWalk(tiles[cand.y][cand.x])
     ) return cand;
   }
-  // no neighbor? stay put
   return from.clone();
 }
 
