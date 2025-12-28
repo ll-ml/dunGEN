@@ -1,96 +1,99 @@
 import * as THREE from 'three';
-import {TileType, Room, Pool } from './types.js'
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import {TileType, Room, Pool, TILE_SIZE } from './types.js'
 import { Player } from './player.js'
 import { Enemy } from './enemy.js';
+import { StorageItem } from './storageItem.js'
+import { generateLoot } from "./loot.js";
 
-const TILE_SIZE = 16; // TODO: implment dynamic resizing
 
 export class Dungeon {
-    constructor(width, height) {
+    constructor(width, height, theme = (Math.random() < 0.25 ? 'arena' : 'default')) {
         this.width = width;
         this.height = height;
         this.denseMatrix = this.createEmptyMatrix();
+        this.theme = theme;
         this.sparseMatrix = [];
         this.dungeonRooms = [];
         this.statusMessages = [];
-
-        this.materialMap = this.loadMaterialMap();
     }
 
-    loadMaterialMap() {
+    async loadModelMap() {
+        const loader = new GLTFLoader();
+        const texLoader = new THREE.TextureLoader();
+        const modelMap = {};
 
-        const textureLoader = new THREE.TextureLoader();
+        async function loadModel(url, key, colormapUrl = null) {
+            const gltf = await loader.loadAsync(url);
+        
+            const sceneClone = gltf.scene.clone(true);
+        
+            if (colormapUrl) {
+              const map = await texLoader.loadAsync(colormapUrl);
+              map.encoding = THREE.sRGBEncoding;
+              map.colorSpace = THREE.SRGBColorSpace;
+              map.flipY    = false;
+        
+              sceneClone.traverse(node => {
+                if (!node.isMesh) return;
+                const mat = node.material.clone();
+                mat.map          = map;
+                mat.needsUpdate  = true;
 
-        const standardWallTexture = textureLoader.load('./tile_0014.png', () => {
-            standardWallTexture.colorSpace = THREE.SRGBColorSpace
-        });
+                mat.metalnessMap = null;
+                mat.roughnessMap = null;
+                mat.metalness    = 0;
+                mat.roughness    = 1;
+                node.material    = mat;
+              });
+            }
+        
+            modelMap[key] = sceneClone;
+          }
 
-        const brightWallTexture = textureLoader.load('./tile_0040.png', () => {
-            brightWallTexture.colorSpace = THREE.SRGBColorSpace
-        });
+          const themes = {
+            default: [
+                ['./public/wall.glb',        TileType.WALL,      null],
+                ['./public/floor.glb',       TileType.FLOOR,     null],
+                ['./public/floor-detail.glb',TileType.PEBBLES,   null],
+                ['./public/floor.glb',       TileType.ROCK,   null],
+                ['./public/wall-gate.glb',   TileType.DOOR,      './public/Textures/colormap3.png'],
+            ],
+            arena: [
+                ['./public/wall.glb',                   TileType.WALL,      null],
+                ['./public/alternate-floor.glb',        TileType.FLOOR,      './public/Textures/colormap3.png'],
+                ['./public/alternate-floor-detail.glb', TileType.PEBBLES,   './public/Textures/colormap3.png'],
+                ['./public/floor.glb',                  TileType.ROCK,   null],
+                ['./public/wall-gate.glb',              TileType.DOOR,      './public/Textures/colormap3.png'],
 
-        const daggerHead = textureLoader.load('./tile_0019.png', () => {
-            daggerHead.colorSpace = THREE.SRGBColorSpace
-        });
+            ]
+          }
 
-        const spoutWallTexture = textureLoader.load('./tile_0007.png', () => {
-            spoutWallTexture.colorSpace = THREE.SRGBColorSpace
-        });
 
-        const wallTextures = [ 
-            new THREE.MeshBasicMaterial({ map: standardWallTexture } ),
-            new THREE.MeshBasicMaterial({ map: brightWallTexture } ),
-            new THREE.MeshBasicMaterial({ map: spoutWallTexture } ),
-            new THREE.MeshBasicMaterial({ map: daggerHead } ),
-        ];
+          /*
+        // Duplicates are to ensure no holes in dungeon for now
+        await Promise.all([
+            loadModel('./public/wall.glb', TileType.WALL),
+            //loadModel('./public/alternate-wall.glb', TileType.WALL, './public/Textures/colormap3.png'),
+            //loadModel('./public/floor.glb', TileType.FLOOR),
+            loadModel('./public/alternate-floor.glb', TileType.FLOOR, './public/Textures/colormap3.png'),
+            //loadModel('./public/floor-detail.glb', TileType.PEBBLES),
+            loadModel('./public/alternate-floor-detail.glb', TileType.PEBBLES, './public/Textures/colormap3.png'),
+            loadModel('./public/floor.glb', TileType.ROCK),
+            loadModel('./public/wall.glb', TileType.WALL),
+            //loadModel('./public/wall-opening.glb', TileType.DOOR_WAY),
+            loadModel('./public/wall-gate.glb', TileType.DOOR, './public/Textures/colormap3.png'),
+        ]);
+        */
+       const defs = themes[this.theme] || themes.default;
 
-        const floorTexture = textureLoader.load('./tile_0048.png', () => {
-            floorTexture.colorSpace = THREE.SRGBColorSpace;
-        });
+       await Promise.all(defs.map(([url, key, cmap]) => 
+            loadModel(url, key, cmap)
+        ));
 
-        const rockTexture = textureLoader.load('./tile_0042.png', () => {
-            rockTexture.colorSpace = THREE.SRGBColorSpace;
-        });
-
-        const pebblesTexture = textureLoader.load('./tile_0049.png', () => {
-            pebblesTexture.colorSpace = THREE.SRGBColorSpace;
-        });
-
-        const doorTexture = textureLoader.load('./tile_0045.png', () => {
-            doorTexture.colorSpace = THREE.SRGBColorSpace;
-        });
-
-        const waterTexture = textureLoader.load('./tile_0037.png', () => {
-            waterTexture.colorSpace = THREE.SRGBColorSpace;
-        });
-
-        const dirtTexture = textureLoader.load('./tile_0000.png', () => {
-            dirtTexture.colorSpace = THREE.SRGBColorSpace;
-        });
-
-        const pebbleDirtTexture = textureLoader.load('./tile_0012.png', () => {
-            pebbleDirtTexture.colorSpace = THREE.SRGBColorSpace;
-        });
-
-        const rocksDirtTexture = textureLoader.load('./tile_0024.png', () => {
-            rocksDirtTexture.colorSpace = THREE.SRGBColorSpace;
-        });
-
-        const materialMap = {
-            [TileType.WALL]: wallTextures,
-            [TileType.FLOOR]: new THREE.MeshBasicMaterial({ map: floorTexture }),
-            [TileType.ROCK]: new THREE.MeshBasicMaterial({ map: rockTexture }),
-            [TileType.PEBBLES]: new THREE.MeshBasicMaterial({ map: pebblesTexture }),
-            [TileType.DOOR]: new THREE.MeshBasicMaterial({ map: doorTexture }),
-            [TileType.WATER]: new THREE.MeshBasicMaterial({ map: waterTexture }),
-            [TileType.DIRT]: new THREE.MeshBasicMaterial({ map: dirtTexture }),
-            [TileType.PEBBLE_DIRT]: new THREE.MeshBasicMaterial({ map: pebbleDirtTexture }),
-            [TileType.ROCK_DIRT]: new THREE.MeshBasicMaterial({ map: rocksDirtTexture }),
-        };
-
-        return materialMap;
+        return modelMap;
     }
-
+    
     createEmptyMatrix() {
         return Array.from({ length: this.height }, () =>
             Array.from({ length: this.width }, () => TileType.WALL)
@@ -277,7 +280,7 @@ export class Dungeon {
         }
     }
 
-    spawnPlayer() {
+    async spawnPlayer() {
         if (this.dungeonRooms.length === 0) {
             console.warn("ERROR: attempted to spawn player with no rooms in dungeon!");
             return;
@@ -288,14 +291,31 @@ export class Dungeon {
         const room = this.dungeonRooms[roomIndex];
 
         const px = this.randInt(room.x + 1, room.x + room.width - 2);
-        const py = this.randInt(room.y + 1, room.y + room.height - 2)
+        const pz = this.randInt(room.y + 1, room.y + room.height - 2)
 
-        const player = new Player(px, py);
-        this.sparseMatrix.push(player);
+        const player = new Player(px, pz);
+        this.sparseMatrix.push(player); // just push them on the sparse matrix
     }
 
+    placePlayer(existingPlayer) {
+        this.sparseMatrix.splice(0, 1);
+      
+        const room = this.dungeonRooms[
+          this.randInt(0, this.dungeonRooms.length - 1)
+        ];
+        const px = this.randInt(room.x + 1, room.x + room.width  - 2);
+        const pz = this.randInt(room.y + 1, room.y + room.height - 2);
+      
+        existingPlayer.coords.set(px, pz);
+        existingPlayer.updatePosition();
+      
+        this.sparseMatrix.unshift(existingPlayer);
+      
+        return existingPlayer;
+      }
+
     spawnEnemies() {
-        for (let i = 0; i < 8; i++) {
+        for (let i = 0; i < 4; i++) {
             const spawnRoll = Math.random();
             if (spawnRoll > 0.6) continue;
             const enemyRoll = Math.random();
@@ -308,46 +328,81 @@ export class Dungeon {
             } while (this.denseMatrix[ey][ex] !== TileType.FLOOR);
 
             if (spawnHardEnemy) {
-                let cyclops = new Enemy("Cyclopes", 50, ex, ey, 10); // ID, HP, x, y, atk, agro
-                this.sparseMatrix.push(cyclops);
+                let hardEnemy;
+                if (this.theme === 'arena') {
+                    hardEnemy = new Enemy("./public/character-soldier.glb",
+                        "Legion Grunt",
+                        60, ex, ey, 10, 15,
+                        {
+                            scale: TILE_SIZE, 
+                            height: 0, 
+                            colormap: "./public/Textures/colormap3.png"
+                        });
+                } else {
+                    hardEnemy = new Enemy("./public/character-orc.glb",
+                        "Orc Warrior",
+                        50, ex, ey, 8, 10,);
+                }
+                this.sparseMatrix.push(hardEnemy);
             } else {
-                let spider = new Enemy("Spider", 30, ex, ey, 3, 4); // Spiders have smaller agro range
-                this.sparseMatrix.push(spider);
+                let easyEnemy = new Enemy("./public/character-zombie.glb",
+                     "Zombie",
+                      30, ex, ey, 7, 4,
+                    {
+                        scale: TILE_SIZE,
+                        height: 0,
+                        colormap: "./public/Textures/colormap2.png"
+
+                    });
+                this.sparseMatrix.push(easyEnemy);
             }
         }
     }
 
-    // Takes reference to THREE.js scene
-    updateEnemies(scene) {
-        const player = this.player;
-        if (!player) {
-            console.error("ERROR: player entity does not exist when it should");
-            return;
-        }
+    spawnLoot() {
+        let chance = 1.0;
+        let anySpawned = false; 
 
-        for (const obj of this.sparseMatrix) {
-            if (obj instanceof Enemy) {
-                if (obj.hp <= 0) {
-                    this.addStatus(`You have slain a: ${obj.id}`);
-                    scene.remove(obj.mesh);
-                    if (obj.mesh.geometry) obj.mesh.geometry.dispose();
-                    if (obj.mesh.material) obj.mesh.material.dispose();
-                    this.sparseMatrix.splice(this.sparseMatrix.indexOf(obj), 1);
-                    continue;
+        const randomFloorInRoom = room => {
+            let x, y;
+            
+            do {
+                x = this.randInt(room.x, room.x + room.width - 1);
+                y = this.randInt(room.y, room.y + room.height - 1);
+            } while (this.denseMatrix[y][x] !== TileType.FLOOR);
+            return { x, y };
+        };
 
-                }
-                const nextPos = obj.tryMove(player.coords, this.denseMatrix);
-                if (nextPos.equals(obj.coords)) {
-                    const idlePos = obj.idle(this.denseMatrix);
-                    if (!idlePos.equals(obj.coords)) {
-                        obj.move(idlePos);
-                    }
-                } else {
-                    obj.move(nextPos);
+        for (const room of this.dungeonRooms) {
+            if (Math.random() < chance) {
+                const { x, y } = randomFloorInRoom(room);
 
-                }
+                const count = this.randInt(0, 3);
+                const contents = generateLoot(count);
+                
+                this.sparseMatrix.push(
+                    new StorageItem("Barrel", x, y, contents)
+                );
+                anySpawned = true;
             }
+            chance *= 0.25;
         }
+
+         // If player gets bad RNG force a spawn for at least one loot barrel
+         if (this.dungeonRooms.length) {
+            const fallbackRoom = this.dungeonRooms[
+                this.randInt(0, this.dungeonRooms.length - 1)
+            ]
+
+            const { x, y } = randomFloorInRoom(fallbackRoom);
+            const numItems = this.randInt(1, 3);
+            const contents = generateLoot(numItems);
+            
+
+            this.sparseMatrix.push(
+                new StorageItem("Barrel", x, y, contents)
+            );
+         }
     }
 
     get player() {
@@ -355,11 +410,9 @@ export class Dungeon {
     }
 
     /*
-        CURRENT KNOWN POOL BUGS:
-        They could be nicer looking
-        TODO: Return after spawning a pool. Only 1 pool max per dungeon
+        TODO: Remove pools, make it another tile structure.
     */
-    spawnPools(spawnChance = 0.03) {
+    spawnPools(spawnChance = 0.0) {
         this.pools = [];
 
         for (const room of this.dungeonRooms) {
@@ -394,8 +447,9 @@ export class Dungeon {
 
 
 
-    generateDungeon() {
+    async generateDungeon(player = null) {
         this.denseMatrix = this.createEmptyMatrix();
+        this.theme = (Math.random() < 0.25 ? 'arena' : 'default'); // should make this generally happen only at one point
         this.sparseMatrix = [];
         this.dungeonRooms = [];
 
@@ -406,10 +460,14 @@ export class Dungeon {
         this.connectRooms();
         this.placeDoors();
 
-        this.spawnPools();
+        if (player) {
+            this.placePlayer(player);
+        } else {
+            await this.spawnPlayer();
+        }
 
+        this.spawnLoot();
 
-        this.spawnPlayer();
         this.spawnEnemies();
     }
 }

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Unbound Depths</title>
+<title>Unbound Depths [Preview Build]</title>
 <style>
     @font-face {
         font-family: 'DungeonFont';
@@ -30,6 +30,7 @@
         text-shadow: 3px 3px 5px rgba(0, 0, 0, 0.7);
         z-index: 10;
     }
+
     #statusArea {
         width: 100%;
         max-height: 150px;
@@ -43,7 +44,7 @@
     }
     #inventory {
         position: fixed;
-        top: 0;
+        bottom: 0;
         right: 0;
         width: 250px;
         height: 100vh;
@@ -53,25 +54,297 @@
         border-left: 2px solid #333;
         padding: 10px;
         box-sizing: border-box;
-        overflow-y: auto;
+
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
     }
     #inventory h2 {
-        margin-top: 0;
+        margin-top: 0 0 10px;
         text-align: center;
     }
 
+    #inventoryItems {
+        display: grid;
+        grid-template-columns: repeat(3, 64px);
+        grid-template-rows:    repeat(3, 64px);
+        gap: 20px;
+        margin-top: auto;
+        justify-content: center;
+        padding-bottom: 10px;
+    }
+
+    #inventoryItems .slot {
+        background: rgba(0,0,0,0.1);
+        border: 1px solid #4b3b2f;
+        box-sizing: border-box;
+    }
+
+    .inventory-stats {
+        border-bottom: 2px solid #4b3b2f;
+        padding-bottom: 8px;
+        margin-bottom: 12px;
+        text-align: center;
+    }
+
+    .inventory-stats h3 {
+        margin: 0;
+        font-size: 1em;
+        font-weight: normal;
+    }
+
+    .inventory-stats .stat {
+        margin-top: 4px;
+        font-size: 0.9em;
+    }
+
+    #ctxMenu {
+        position: absolute;
+        background: #222;
+        border: 1px solid #555;
+        padding: 4px 0;
+        display: none;
+        z-index: 1000;
+        color: white;
+        font-family: 'DungeonFont', 'Courier New', Courier, monospace;
+    }
+
+    #ctxMenu li {
+        list-style: none;
+        padding: 4px 16px;
+        cursor: pointer;
+    }
+
+    #ctxMenu li:hover {
+        background: #444;
+    }
+
+    .modal {
+        position: fixed;
+        top: 0; left: 0; right:0; bottom:0;
+        background: rgba(0,0,0,0.75);
+        display: flex; align-items: center; justify-content: center;
+        }
+
+    .modal.hidden { display: none; }
+
+    .modal-content {
+        background: #f0e6d2; color: #4b3b2f;
+        padding: 20px; border: 2px solid #333;
+        font-family: 'DungeonFont', monospace;
+        text-align: center;
+    }
+
+    .slots {
+        display: flex; gap: 10px;
+        margin: 10px 0;
+    }
+
+    .slots .slot {
+        width: 64px; height: 64px;
+        background: rgba(0,0,0,0.1); border:1px solid #4b3b2f;
+        position: relative;
+    }
+
+    .slots .slot img {
+        width:100%; height:100%; object-fit:contain;
+        cursor: pointer;
+    }
+    
+    .slots .item-quantity {
+        position: absolute;
+        bottom: 2px;
+        right: 2px;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 2px 4px;
+        border-radius: 3px;
+        font-size: 12px;
+        font-weight: bold;
+        text-shadow: 1px 1px 1px black;
+        pointer-events: none;
+    }
+    
+    .damage-bubble {
+        position: absolute;
+        transform: translate(-50%, 0);
+        font-family: 'DungeonFont', monospace;
+        white-space: nowrap;
+    
+        background: radial-gradient(circle, #ff6666 0%, #cc0000 70%, #990000 100%);
+        color: white;
+        font-size: 18px;
+        font-weight: bold;
+    
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+    
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    
+        border: 2px solid #ffcccc;
+        box-shadow: 
+            0 0 10px rgba(255, 0, 0, 0.8),
+            0 0 20px rgba(255, 0, 0, 0.4),
+            inset 0 0 10px rgba(255, 255, 255, 0.2);
+    
+
+        text-shadow: 
+            1px 1px 2px rgba(0, 0, 0, 0.8),
+            0 0 5px rgba(0, 0, 0, 0.5);
+    
+
+        opacity: 1;
+        animation: damagePop 1s ease-out forwards;
+    }
+
+    @keyframes damagePop {
+        0% {
+            transform: translate(-50%, 0) scale(0.5);
+            opacity: 0;
+        }
+    
+        20% {
+            transform: translate(-50%, -10px) scale(1.2);
+            opacity: 1;
+        }
+    
+        40% {
+            transform: translate(-50%, -20px) scale(1);
+        }
+    
+        100% {
+            transform: translate(-50%, -50px) scale(0.8);
+            opacity: 0;
+        }
+    }
+
+    .skills-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+        margin-top: 8px;
+    }
+
+    .skills-bar .skill {
+        background: rgba(255,255,255,0.1);
+        border: 1px solid #4b3b2f;
+        padding: 2px 6px;
+        font-size: 0.8em;
+        cursor: default;
+    }
+
+    .skills-bar .skill.level-up {
+        animation: glow 1s ease-in-out;
+    }
+
+    @keyframes glow {
+        0% {
+            box-shadow: 0 0 0px rgba(255, 223, 0, 0);
+        }
+        50% {
+            box-shadow:
+            0 0 8px rgba(255, 223, 0, 0.8),
+            0 0 16px rgba(255, 223, 0, 0.6),
+            0 0 24px rgba(255, 223, 0, 0.4);
+        }
+        100% {
+            box-shadow: 0 0 0px rgba(255, 223, 0, 0);
+        }
+    }
 </style>
 </head>
 <body>
-
-<h1 id="game-title">(v0.0.43) Move: WASD Interact: Space</h1>
-
+<ul id="ctxMenu"></ul>
 <div id="statusArea"></div>
 <script type="module" src="/src/main.js"></script>
 <div id="inventory">
-    <h2>Inventory</h2>
+    <div class="inventory-stats">
+        <h3>Stats</h3>
+        <div class="stat">HP: <span id="hp">100</span>/<span id="maxHp">100</span></div>
+    </div>
+    <div id="skills">Skills</div>
+    <div id="skillsBar" class="skills-bar">
+        <div class="skill" data-skill="Attack">
+          <span class="skill-name">Attack</span>
+          <span class="skill-level">1</span>
+          <span class="skill-xp">0/100</span>
+        </div>
+        <div class="skill" data-skill="Defense">
+          <span class="skill-name">Defense</span>
+          <span class="skill-level">1</span>
+          <span class="skill-xp">0/100</span>
+        </div>
+        <div class="skill" data-skill="Hitpoints">
+          <span class="skill-name">Hitpoints</span>
+          <span class="skill-level">1</span>
+          <span class="skill-xp">0/100</span>
+        </div>
+        <div class="skill" data-skill="Looting">
+          <span class="skill-name">Looting</span>
+          <span class="skill-level">1</span>
+          <span class="skill-xp">0/100</span>
+        </div>
+        <div class="skill" data-skill="Crafting">
+          <span class="skill-name">Crafting</span>
+          <span class="skill-level">1</span>
+          <span class="skill-xp">0/100</span>
+        </div>
+        <div class="skill" data-skill="Magic">
+          <span class="skill-name">Magic</span>
+          <span class="skill-level">1</span>
+          <span class="skill-xp">0/100</span>
+        </div>
+        <div class="skill" data-skill="Firemaking">
+          <span class="skill-name">Firemaking</span>
+          <span class="skill-level">1</span>
+          <span class="skill-xp">0/100</span>
+        </div>
+        <div class="skill" data-skill="Ranged">
+          <span class="skill-name">Ranged</span>
+          <span class="skill-level">1</span>
+          <span class="skill-xp">0/100</span>
+        </div>
+        <div class="skill" data-skill="Cooking">
+          <span class="skill-name">Cooking</span>
+          <span class="skill-level">1</span>
+          <span class="skill-xp">0/100</span>
+        </div>
+      </div>      
     <div id="inventoryItems">
+        <div class="slot"></div>
+        <div class="slot"></div>
+        <div class="slot"></div>
+        <div class="slot"></div>
+        <div class="slot"></div>
+        <div class="slot"></div>
+        <div class="slot"></div>
+        <div class="slot"></div>
+        <div class="slot"></div>
          <!-- inventory items -->
+    </div>
+</div>
+
+<!-- storage modal, hidden by default -->
+<div id="storageModal" class="modal hidden">
+    <div class="modal-content">
+      <h2>Container</h2>
+      <div id="storageSlots" class="slots">
+        <div class="slot"></div>
+        <div class="slot"></div>
+        <div class="slot"></div>
+      </div>
+      <button id="storageClose">Close</button>
+    </div>
+</div>
+
+<div id="deathModal" class="modal hidden">
+    <div class="modal-content">
+      <h2>You have been slain.</h2>
+      <button id="newCharBtn">New Character</button>
     </div>
 </div>
 
