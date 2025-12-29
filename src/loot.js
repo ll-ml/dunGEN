@@ -1,4 +1,6 @@
 import { InventoryItem } from "./inventory.js";
+import { DroppedItem } from "./storageItem.js";
+import { Vector2 } from "three";
 
 /**
  * Generate `count` loot items:
@@ -15,7 +17,34 @@ export function generateLoot(count = 1) {
     return result;
   }
 
-// why was this exported?
+
+
+  /**
+   * Generates a single dropped item and gives it an actual 3D model. Caller must still push to sparse matrix and add it scene.
+   * @param {x} number - X coordinate
+   * @param {y} number - Y coordinate
+   * @param {scene} scene - Three.js scene
+   * @param {dungeon} Dungeon - Reference to the full dungeon so we can push it to sparse matrix within the function
+   * @returns {DroppedItem} 3D GLB model for rendering in dungeon
+   */
+  export function spawnDroppedItem(x, y, sparseMatrix, scene) {
+    const droppedItem =  generateLoot(1)[0];
+    const glbPath = droppedItem.imagePath.substring(0, droppedItem.imagePath.lastIndexOf('.')) + '.glb';
+
+    const item = new DroppedItem(droppedItem.id, x, y, glbPath, droppedItem);
+
+    sparseMatrix.push(item);
+
+    item.addTo(scene)
+      .then(model => {
+        item.inScene = true;
+      })
+      .catch(err => {
+        console.error("ERROR: could add dropped item to scene", err);
+      })
+    
+  }
+
 const lootTables = {
     common: [
       { item: new InventoryItem("Cheese Wheel",  "Cheese Wheel",  "./Items/cheese.png",  "A wheel of cheese.", "food", (player, dungeon) => { player.combat.hp = Math.min(player.combat.hp + 3, player.maxHealth); player.interact(); dungeon.addStatus("You eat a cheese wheel and recover 3 HP.");}, {stackable: true, maxStackSize: 16}),      weight: 50 },
