@@ -1,11 +1,9 @@
 import * as THREE from 'three';
 import { DungeonObject } from './dungeonObject.js';
 import { TileType } from './types.js';
-import { InventoryItem } from './inventory.js';
 import { Enemy } from './enemy.js';
 import { Combatant } from './combat.js';
 import { SkillManager } from "./skills.js";
-import { instance } from 'three/tsl';
 
 
 const TILE_SIZE = 11;
@@ -493,7 +491,17 @@ export class Player extends DungeonObject {
   canWalk(tile) {
     // lol what even is that
     //return tile !== TileType.WALL && tile !== TileType.WATER && tile !== TileType.DIRT && tile != TileType.PEBBLE_DIRT && tile !== TileType.ROCK_DIRT;
-    return tile === TileType.FLOOR;
+    switch (tile) {
+      case TileType.WALL:
+      case TileType.WATER:
+      case TileType.DIRT:
+      case TileType.PEBBLE_DIRT:
+      case TileType.ROCK_DIRT:
+        return false;
+      default:
+          return true;
+    }
+    //return tile === TileType.FLOOR;
   }
 
   // this is dead code but i assume i left this in here for some future referece so i wont delete it now

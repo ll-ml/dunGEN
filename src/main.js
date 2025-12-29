@@ -9,7 +9,7 @@ import { FrameCounter } from './fpsCounter.js';
 import { renderInventory, setupInventoryContext } from './inventory.js';
 import { DroppedItem, StorageItem } from './storageItem.js'
 import { initDamageDisplay } from './damageDisplay.js';
-import { generateLoot } from './loot.js';
+import { generateLoot, spawnDroppedItem } from './loot.js';
 
 
 const tickManager = new TickManager(600);
@@ -118,6 +118,21 @@ combatMgr.onDeath = ({ winner, loser, hit, damage}) => {
   const deadObj = loser.owner; 
   if (deadObj instanceof Enemy) {
     const { x, y } = deadObj.coords;
+
+    spawnDroppedItem(x, y, dungeon.sparseMatrix, scene);
+      /*
+    const deadEnemyLoot = generateLoot(1)[0];
+    const glbPath = deadEnemyLoot.imagePath.substring(0, deadEnemyLoot.imagePath.lastIndexOf('.')) + '.glb';
+    const itemModel = new DroppedItem(deadEnemyLoot.id, deadObj.coords.x, deadObj.coords.y, glbPath, deadEnemyLoot);
+    dungeon.sparseMatrix.push(itemModel);
+     itemModel.addTo(scene)
+                .then(model => {
+                  itemModel.inScene = true;
+                })
+                .catch(err => {
+                  console.error("Failed to add dropped item into scene", err)
+                });
+
     const lootChest = new StorageItem(
       "Wooden Chest",
       x, 
@@ -129,6 +144,7 @@ combatMgr.onDeath = ({ winner, loser, hit, damage}) => {
     );
     dungeon.sparseMatrix.push(lootChest);
     lootChest.addTo(scene);
+    */
   }
 }
 
@@ -189,14 +205,7 @@ newCharBtn.onclick = async () => {
     const deadObj = loser.owner;
     if (deadObj instanceof Enemy) {
       const { x, y } = deadObj.coords;
-      const lootChest = new StorageItem(
-        "Wooden Chest",
-        x, y,
-        generateLoot(3),
-        { glbPath: './public/chest.glb' }
-      );
-      dungeon.sparseMatrix.push(lootChest);
-      lootChest.addTo(scene);
+      spawnDroppedItem(x, y, dungeon.sparseMatrix, scene);
     }
   };
 };
@@ -346,17 +355,7 @@ renderer.domElement.addEventListener('contextmenu', e => {
         const deadObj = loser.owner; 
         if (deadObj instanceof Enemy) {
           const { x, y } = deadObj.coords;
-          const lootChest = new StorageItem(
-            "Wooden Chest",
-            x, 
-            y,
-            generateLoot(1),
-            {
-              glbPath: './public/chest.glb'
-            }
-          );
-          dungeon.sparseMatrix.push(lootChest);
-          lootChest.addTo(scene);
+          spawnDroppedItem(x, y, dungeon.sparseMatrix, scene);
         }
       }
     };
