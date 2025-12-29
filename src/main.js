@@ -360,6 +360,20 @@ renderer.domElement.addEventListener('contextmenu', e => {
       }
     };
     ctxMenu.append(openDoor);
+  } else if (tile === TileType.ROCK) { // this is just for fun for now doesnt not actually do anything
+    const mine = document.createElement('li');
+    mine.textContent = "Mine ore found in rocks";
+    mine.onclick = async () => {
+      ctxMenu.style.display = 'none';
+
+      await player.moveToAsync(
+        new THREE.Vector2(gridX, gridZ),
+        dungeon.denseMatrix
+      );
+
+      dungeon.addStatus("You do not have the required tools to perform this action.");
+    };
+    ctxMenu.append(mine);
   }
 
  let enemy = null;
