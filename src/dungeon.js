@@ -56,7 +56,7 @@ export class Dungeon {
                 ['./public/wall.glb',        TileType.WALL,      null],
                 ['./public/floor.glb',       TileType.FLOOR,     null],
                 ['./public/floor-detail.glb',TileType.PEBBLES,   null],
-                ['./public/floor.glb',       TileType.ROCK,   null],
+                ['./public/stones.glb',       TileType.ROCK,   null], // this needs to be hacked a bit to work properly right now
                 ['./public/wall-gate.glb',   TileType.DOOR,      './public/Textures/colormap3.png'],
             ],
             arena: [

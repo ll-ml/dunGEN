@@ -37,6 +37,20 @@ export function buildDungeon(scene, modelMap, dungeonTiles) {
                     doorWayInst.scale.setScalar(TILE_SIZE);
                     scene.add(doorWayInst);
                 }
+                // this actually allows rocks in with floor underneath not sure if this code is worth having at the moment
+                if (tile === TileType.ROCK) {
+                    const standardFloor = modelMap[TileType.FLOOR];
+                    const standardFloorInst = standardFloor.clone();
+
+                    standardFloorInst.position.set(
+                        offsetX + x * TILE_SIZE + TILE_SIZE / 2,
+                        0,
+                        offsetZ + y * TILE_SIZE + TILE_SIZE / 2
+                    );
+
+                    standardFloorInst.scale.setScalar(TILE_SIZE);
+                    scene.add(standardFloorInst);
+                }
                 const proto = modelMap[tile];
                 if (!proto) continue;
                 const modelInstance = proto.clone();
