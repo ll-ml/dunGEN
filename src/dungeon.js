@@ -193,9 +193,8 @@ export class Dungeon {
             const rw = this.randInt(4, 10);
             const rh = this.randInt(4, 10);
 
-            const posLimit = Math.min(this.width, this.height) - 12;
-            const rx = this.randInt(1, posLimit);
-            const ry = this.randInt(1, posLimit);
+            const rx = this.randInt(1, this.width - rw - 1);
+            const ry = this.randInt(1, this.height - rh - 1);
 
             this.dungeonRooms.push(new Room(rx, ry, rw, rh));
         }
@@ -236,7 +235,7 @@ export class Dungeon {
           // horizontal corridor from min(x1, x2) to max(x1, x2) along row y1.
           const startX = Math.min(x1, x2);
           const endX = Math.max(x1, x2);
-          for (let x = startX; x < endX; x++) {
+          for (let x = startX; x <= endX; x++) {
             if (y1 >= 0 && y1 < this.height && x >= 0 && x < this.width) {
               this.denseMatrix[y1][x] = TileType.FLOOR;
               // for horizontal corridors, check above and below.
