@@ -9,8 +9,12 @@ import { FrameCounter } from './fpsCounter.js';
 import { renderInventory, setupInventoryContext } from './inventory.js';
 import { DroppedItem, StorageItem } from './storageItem.js'
 import { initDamageDisplay } from './damageDisplay.js';
-import { generateLoot, spawnDroppedItem } from './loot.js';
+import { spawnDroppedItem } from './loot.js';
+import { generateOverworldWFC } from './overworld/wfc.js';
 
+
+const overWorld = generateOverworldWFC();
+console.log(overWorld);
 
 const tickManager = new TickManager(600);
 const clock = new THREE.Clock();
