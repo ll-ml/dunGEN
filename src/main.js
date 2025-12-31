@@ -94,7 +94,7 @@ const scene = new THREE.Scene();
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setClearColor(0x222222, 1);
+renderer.setClearColor(0x2F2221, 1);
 document.body.appendChild(renderer.domElement);
 // DEBUG
 const fpsCounter = new FrameCounter();
