@@ -118,14 +118,7 @@ export class Dungeon {
         for (let y = 0; y < this.height; y++) {
             for (let x = 0; x < this.width; x++) {
                 if (!this.isInsideAnyRoom(x, y)) {
-                    const roll = Math.random();
-                    if (roll < 0.85) {
-                        this.denseMatrix[y][x] = TileType.DIRT;
-                    } else if (roll < 0.99) {
-                        this.denseMatrix[y][x] = TileType.PEBBLE_DIRT;
-                    } else {
-                        this.denseMatrix[y][x] = TileType.ROCK_DIRT;
-                    }
+                    this.denseMatrix[y][x] = TileType.DIRT;
                 }
             }
         }
