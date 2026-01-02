@@ -13,7 +13,7 @@ import { spawnDroppedItem } from './loot.js';
 import { generateOverworldWFC } from './overworld/wfc.js';
 
 
-const overWorld = generateOverworldWFC();
+const overWorld = generateOverworldWFC(150, 100);
 console.log(overWorld);
 
 const tickManager = new TickManager(600);

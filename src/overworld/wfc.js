@@ -93,11 +93,11 @@ export function generateOverworldWFC(width = 200, height = 200, {
     rng = Math.random,
 } = {}) {
     const runWeights = weights ?? {
-        [TileId.WATER]: 10, 
-        [TileId.SAND]: 5, 
-        [TileId.GRASS]: 50, 
-        [TileId.DENSE_GRASS]: 25, 
-        [TileId.FOREST]: 20,
+        [TileId.WATER]: 20, 
+        [TileId.SAND]: 20, 
+        [TileId.GRASS]: 70, 
+        [TileId.DENSE_GRASS]: 45, 
+        [TileId.FOREST]: 45,
     };
 
 
@@ -175,7 +175,7 @@ export function generateOverworldWFC(width = 200, height = 200, {
             return true;
         }
 
-        if (!propagate())continue; // simply restart attempt on error
+        if (!propagate()) continue; // simply restart attempt on error
         
         while (true) {
             let bestX = -1, bestY = -1, bestEntropy = Infinity;
