@@ -10,11 +10,14 @@ import { renderInventory, setupInventoryContext } from './inventory.js';
 import { DroppedItem, StorageItem } from './storageItem.js'
 import { initDamageDisplay } from './damageDisplay.js';
 import { spawnDroppedItem } from './loot.js';
-import { generateOverworldWFC } from './overworld/wfc.js';
+import { Overworld } from './overworld/overworld.js';
 
 
-const overWorld = generateOverworldWFC(150, 100);
-console.log(overWorld);
+
+
+const width = 100, height = 150;
+const overworld = new Overworld(width, height);
+console.log(overworld.denseMatrix);
 
 const tickManager = new TickManager(600);
 const clock = new THREE.Clock();
