@@ -1,4 +1,4 @@
-const TileId = Object.freeze({
+export const TileId = Object.freeze({
     WATER: "WATER",
     SAND: "SAND",
     GRASS: "GRASS",
@@ -7,7 +7,7 @@ const TileId = Object.freeze({
 });
 
 
-const TILE_DEFS = Object.freeze({
+export const TILE_DEFS = Object.freeze({
     [TileId.WATER]: {
         glyph: "~",
         baseWeight: 10,
