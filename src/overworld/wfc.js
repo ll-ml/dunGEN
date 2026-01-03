@@ -1,4 +1,4 @@
-const TileId = Object.freeze({
+export const TileId = Object.freeze({
     WATER: "WATER",
     SAND: "SAND",
     GRASS: "GRASS",
@@ -7,7 +7,7 @@ const TileId = Object.freeze({
 });
 
 
-const TILE_DEFS = Object.freeze({
+export const TILE_DEFS = Object.freeze({
     [TileId.WATER]: {
         glyph: "~",
         baseWeight: 10,
@@ -40,13 +40,17 @@ const TILE_ORDER = [TileId.WATER, TileId.SAND, TileId.GRASS, TileId.DENSE_GRASS,
 export const TILE_INDEX = Object.fromEntries(TILE_ORDER.map((id, i) => [id, i]));
 const ALL_MASK = (1 << TILE_ORDER.length) - 1;
 
+
+
+const POPCOUNT = new Uint8Array(32);
+for (let m = 0; m < 32; m++) {
+    let x = m, c = 0; 
+    while (x) { x &= (x - 1); c++ }
+    POPCOUNT[m] = c;
+}
+
 function bitCount(mask) {
-    let c = 0;
-    while (mask) {
-        mask &= (mask - 1);
-        c++;
-    }
-    return c;
+    return POPCOUNT[mask];
 }
 
 function maskToOptions(mask) {
@@ -56,6 +60,26 @@ function maskToOptions(mask) {
     }
 
     return opts;
+}
+
+function pickWeightedFromMask(mask, weights, rng) {
+  let total = 0;
+
+  for (let i = 0; i < TILE_ORDER.length; i++) {
+    if (mask & (1 << i)) total += (weights[TILE_ORDER[i]] ?? 1);
+  }
+
+  let r = rng() * total;
+  for (let i = 0; i < TILE_ORDER.length; i++) {
+    if (!(mask & (1 << i))) continue;
+    r -= (weights[TILE_ORDER[i]] ?? 1);
+    if (r <= 0) return TILE_ORDER[i];
+  }
+
+  for (let i = TILE_ORDER.length - 1; i >= 0; i--) {
+    if (mask & (1 << i)) return TILE_ORDER[i];
+  }
+  return TILE_ORDER[0];
 }
 
 function pickWeighted(options, weights, rng = Math.random) {
@@ -194,8 +218,7 @@ export function generateOverworldWFC(width = 200, height = 200, {
 
             if (bestX === -1) break;
 
-            const opts = maskToOptions(possible[bestY][bestX]);
-            const chosen = pickWeighted(opts, runWeights, rng);
+            const chosen = pickWeightedFromMask(possible[bestY][bestX], runWeights, rng);
             setCell(bestX, bestY, chosen);
 
             if (!propagate()) {
