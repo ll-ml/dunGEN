@@ -44,14 +44,9 @@ async function main() {
   camera.position.set(0, worldRadius * 0.9, worldRadius * 0.9);
   camera.lookAt(0, 0, 0);
 
-  // Controls
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.target.set(0, 0, 0);
 
-  // Feel: top-down-ish but allow orbit
-
-
-  // Limit how far you can zoom
   controls.minDistance = TILE_SIZE * 5;
   controls.maxDistance = worldRadius * 1.5;
 
@@ -65,7 +60,9 @@ async function main() {
 
   const overworld = new Overworld(WORLD_W, WORLD_H);
   const modelMap = await overworld.loadModelMap();
-  buildOverworld(scene, modelMap, overworld.denseMatrix, TILE_SIZE);
+  const overWorldGroup = new THREE.Group();
+  buildOverworld(overWorldGroup, modelMap, overworld.denseMatrix, TILE_SIZE);
+  scene.add(overWorldGroup);
 
   addAddtionalItems(scene);
 

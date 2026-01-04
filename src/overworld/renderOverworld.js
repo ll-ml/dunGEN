@@ -1,8 +1,9 @@
 import * as THREE from "three";
 import { TILE_DEFS, TileId } from "./wfc.js";
 
-export function buildOverworld(scene, modelMap, glyphGrid, TILE_SIZE) {
+export function buildOverworld(parent, modelMap, glyphGrid, TILE_SIZE) {
   // IMPORTANT: do NOT remove lights. Clear only a world group.
+  while (parent.children.length) parent.remove(parent.children[0]);
 
   const height = glyphGrid.length;
   const width = glyphGrid[0]?.length ?? 0;
@@ -72,28 +73,28 @@ export function buildOverworld(scene, modelMap, glyphGrid, TILE_SIZE) {
 
   if (waterCount > 0 && modelMap[GLYPH_WATER]) {
     inst.water = makeInstancedMeshesFromProto(modelMap[GLYPH_WATER], waterCount);
-    inst.water.forEach((m) => scene.add(m));
+    inst.water.forEach((m) => parent.add(m));
   }
 
   if (sandCount > 0 && modelMap[GLYPH_SAND]) {
     inst.sand = makeInstancedMeshesFromProto(modelMap[GLYPH_SAND], sandCount);
-    inst.sand.forEach((m) => scene.add(m));
+    inst.sand.forEach((m) => parent.add(m));
   }
 
   if (grassBaseCount > 0 && modelMap[GLYPH_GRASS]) {
     inst.grass = makeInstancedMeshesFromProto(modelMap[GLYPH_GRASS], grassBaseCount);
-    inst.grass.forEach((m) => scene.add(m));
+    inst.grass.forEach((m) => parent.add(m));
   }
 
   // Overlay: dense grass
   if (denseOverlayCount > 0 && modelMap[GLYPH_DENSE]) {
     inst.dense = makeInstancedMeshesFromProto(modelMap[GLYPH_DENSE], denseOverlayCount);
-    inst.dense.forEach((m) => scene.add(m));
+    inst.dense.forEach((m) => parent.add(m));
   }
 
   if (treeCount > 0 && modelMap["TREE"]) {
     inst.tree = makeInstancedMeshesFromProto(modelMap["TREE"], treeCount);
-    inst.tree.forEach((m) => scene.add(m));
+    inst.tree.forEach((m) => parent.add(m));
   }
 
 
