@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { Overworld } from "./overworld/overworld.js";
 import { buildOverworld } from "./overworld/renderOverworld.js";
+import { FrameCounter } from "./fpsCounter.js";
 
 export class Game {
     constructor( { tileSize = 11, worldW = 150, wolrdH = 100 } = {}) {
@@ -23,6 +24,8 @@ export class Game {
 
         this._running = false; 
         this._lastTime = 0;
+
+        this._frameCounter = null;
     }
 
 
@@ -30,6 +33,7 @@ export class Game {
         this._initThree();
         this._initLights();
         this._initResizeHandler();
+        this._frameCounter = new FrameCounter();
 
         await this.loadOverworld();
 
@@ -134,6 +138,7 @@ export class Game {
         this.controls?.update();
         this.renderer.render(this.scene, this.camera);
 
+        this._frameCounter.update();
         requestAnimationFrame(this._loop);
     }
 
