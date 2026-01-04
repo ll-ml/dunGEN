@@ -126,7 +126,7 @@ export class Player extends DungeonObject {
         if (
           nxt.x < 0 || nxt.y < 0 ||
           nxt.x >= cols || nxt.y >= rows ||
-          !this.canWalk(tiles[nxt.y][nxt.x])
+          !this.canWalkDungeonTiles(tiles[nxt.y][nxt.x])
         ) continue;
   
         const nd = curD + 1;
@@ -223,7 +223,7 @@ export class Player extends DungeonObject {
           continue;
         }
         // Skip walls.
-        if (!this.canWalk(tiles[nextPos.y][nextPos.x])) {
+        if (!this.canWalkDungeonTiles(tiles[nextPos.y][nextPos.x])) {
           continue;
         }
         const newDist = currentDist + 1;
@@ -446,7 +446,7 @@ export class Player extends DungeonObject {
     }
     
     // Check collision: only move if the tile is walkable.
-    if (!this.canWalk(denseMatrix[updatedPos.y][updatedPos.x])) {
+    if (!this.canWalkDungeonTiles(denseMatrix[updatedPos.y][updatedPos.x])) {
       return;
     }
     
@@ -488,9 +488,8 @@ export class Player extends DungeonObject {
     }
   }
 
-  canWalk(tile) {
-    // lol what even is that
-    //return tile !== TileType.WALL && tile !== TileType.WATER && tile !== TileType.DIRT && tile != TileType.PEBBLE_DIRT && tile !== TileType.ROCK_DIRT;
+  // name change to account for overworld also existing now
+  canWalkDungeonTiles(tile) {
     switch (tile) {
       case TileType.WALL:
       case TileType.WATER:
@@ -501,44 +500,5 @@ export class Player extends DungeonObject {
       default:
           return true;
     }
-    //return tile === TileType.FLOOR;
-  }
-
-  // this is dead code but i assume i left this in here for some future referece so i wont delete it now
-  isAdjacentToPool(denseMatrix, sparseMatrix) {
-    const tileX = this.coords.x;
-    const tileY = this.coords.y;
-
-    const directions = [
-      new THREE.Vector2(1, 0),
-      new THREE.Vector2(-1, 0),
-      new THREE.Vector2(0, 1),
-      new THREE.Vector2(0, -1)
-    ];
-
-    for (const direction of directions) {
-      const newTileX = tileX + direction.x;
-      const newTileY = tileY + direction.y;
-
-      if (newTileY < 0 || newTileY >= denseMatrix.length || 
-        newTileX < 0 || newTileX >= denseMatrix[0].length
-      ) {
-        continue;
-      }
-
-      if (denseMatrix[newTileY][newTileX] == TileType.WATER) {
-        return true;
-      }
-
-      const ajdCoords = new THREE.Vector2(newTileX, newTileY)
-      for (const obj of sparseMatrix) {
-        if (obj instanceof Enemy && obj.coords.equals(ajdCoords)) {
-          obj.hp -= 10;
-          console.log("Hit enemy: ", obj.id, " at tile: ", obj.coords, " now has hp: ", obj.hp);
-        }
-      }
-    }
-
-    return false;
   }
 }
