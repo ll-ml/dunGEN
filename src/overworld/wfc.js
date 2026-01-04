@@ -112,16 +112,16 @@ function inBounds(x, y, w, h) {
 export function generateOverworldWFC(width = 200, height = 200, {
     weights = null, 
     borderWater = 1,
-    forestSeeds = 20, 
+    forestSeeds = 10, 
     maxRestarts = 50, 
     rng = Math.random,
 } = {}) {
     const runWeights = weights ?? {
         [TileId.WATER]: 20, 
         [TileId.SAND]: 20, 
-        [TileId.GRASS]: 70, 
+        [TileId.GRASS]: 95, 
         [TileId.DENSE_GRASS]: 45, 
-        [TileId.FOREST]: 45,
+        [TileId.FOREST]: 25,
     };
 
 
@@ -149,6 +149,7 @@ export function generateOverworldWFC(width = 200, height = 200, {
                 }
             }
         }
+
 
         // this will seed forest patches (interior)
         for (let i = 0; i < forestSeeds; i++) {
@@ -229,11 +230,18 @@ export function generateOverworldWFC(width = 200, height = 200, {
 
         if (queue.length !== 0) continue;
 
+        let outIds = Array.from({ length: height }, () => new Array(width));
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                outIds[y][x] = collapsed[y][x] ?? maskToOptions(possible[y][x])[0];
+            }
+        }
+        outIds = smoothSingletons(outIds, width, height, 2);
+
         const out = Array.from({ length: height }, () => new Array(width));
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
-                const id = collapsed[y][x] ?? maskToOptions(possible[y][x])[0];
-                out[y][x] = TILE_DEFS[id].glyph;
+                out[y][x] = TILE_DEFS[outIds[y][x]].glyph;
             }
         }
 
@@ -242,3 +250,63 @@ export function generateOverworldWFC(width = 200, height = 200, {
 
     throw new Error("WFC: exceeded maxRestarts without finding a valid overworld");
 }
+
+
+function smoothSingletons(grid, width, height, passes = 2) {
+  const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+  const inb = (x, y) => x >= 0 && y >= 0 && x < width && y < height;
+
+  function compatible(a, b) {
+    return TILE_DEFS[a].allowed.has(b) && TILE_DEFS[b].allowed.has(a);
+  }
+
+  function canReplace(x, y, newId, src) {
+    for (const [dx, dy] of dirs) {
+      const nx = x + dx, ny = y + dy;
+      if (!inb(nx, ny)) continue;
+      const n = src[ny][nx];
+      if (!compatible(newId, n)) return false;
+    }
+    return true;
+  }
+
+  for (let pass = 0; pass < passes; pass++) {
+    const next = grid.map(row => row.slice());
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const center = grid[y][x];
+
+        const counts = new Map();
+        for (const [dx, dy] of dirs) {
+          const nx = x + dx, ny = y + dy;
+          if (!inb(nx, ny)) continue;
+          const t = grid[ny][nx];
+          counts.set(t, (counts.get(t) ?? 0) + 1);
+        }
+
+        const same = counts.get(center) ?? 0;
+
+        let majority = center;
+        let majorityCount = -1;
+        for (const [t, c] of counts.entries()) {
+          if (c > majorityCount) {
+            majority = t;
+            majorityCount = c;
+          }
+        }
+
+        if (majority !== center && majorityCount >= 3 && same <= 1) {
+          if (canReplace(x, y, majority, grid)) {
+            next[y][x] = majority;
+          }
+        }
+      }
+    }
+
+    grid = next;
+  }
+
+  return grid;
+}
+
