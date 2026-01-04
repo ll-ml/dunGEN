@@ -1,12 +1,12 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { Overworld } from "../overworld/overworld.js";
-import { buildOverworld } from "../overworld/renderOverworld.js";
+import { Overworld } from "./overworld/overworld.js";
+import { buildOverworld } from "./overworld/renderOverworld.js";
 
 export class Game {
     constructor( { tileSize = 11, worldW = 150, wolrdH = 100 } = {}) {
         this.TILE_SIZE = tileSize;
-        this.WOLRD_W = worldW;
+        this.WORLD_W = worldW;
         this.WORLD_H = wolrdH;
 
         this.renderer = null;
@@ -27,6 +27,15 @@ export class Game {
 
 
     async start() {
+        this._initThree();
+        this._initLights();
+        this._initResizeHandler();
+
+        await this.loadOverworld();
+
+        this._running = true; 
+        this._lastTime = performance.now();
+        requestAnimationFrame(this._loop);
 
     }
 
@@ -39,7 +48,7 @@ export class Game {
         this.renderer.toneMappingExposure = 1.0;
         document.body.appendChild(this.renderer.domElement);
 
-        this.scene = new THREE.scene();
+        this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x98c6ff);
 
         // this will need to be its own object pretty sure at some point
@@ -50,22 +59,25 @@ export class Game {
             1000
           );
 
-          const wolrdSizeX = this.WOLRD_W * this.TILE_SIZE;
+          const worldSizeX = this.WORLD_W * this.TILE_SIZE;
           const worldSizeY = this.WORLD_H * this.TILE_SIZE;
           
           //const worldRadius = Math.max(worldSizeX, worldSizeY); yeah this is old code im going to leave here 
 
           const worldRadius = 50; // kind of a magic number but it works great for what we're trying to achive 
 
-          this.camera.position(0, wolrdSizeX * 0.9, worldSizeY * 0.9);
+          this.camera.position.set(0, worldSizeX * 0.9, worldSizeY * 0.9);
           this.camera.lookAt(0, 0, 0); // just hardcode the origin for now.
 
           this.controls = new OrbitControls(this.camera, this.renderer.domElement);
 
-          this.controls.minDistance = TILE_SIZE * 5;
+          this.controls.minDistance = this.TILE_SIZE * 5;
           this.controls.maxDistance = worldRadius * 1.5;
           this.controls.minPolarAngle = Math.PI * 0.15;
           this.controls.maxPolarAngle = Math.PI * 0.49;
+
+
+          this.scene.fog = new THREE.Fog(0x98c6ff, worldRadius * 1.2, worldRadius * 4);
     }
 
     _initLights() {
@@ -85,6 +97,48 @@ export class Game {
             this.camera.updateProjectionMatrix();
             this.renderer.setSize(window.innerWidth, window.innerHeight);
         });
+    }
+
+    async loadOverworld() {
+        const overwolrd = new Overworld(this.WORLD_W, this.WORLD_H)
+
+        const modelMap = await overwolrd.loadModelMap();
+
+        const group = new THREE.Group();
+        buildOverworld(group, modelMap, overwolrd.denseMatrix, this.TILE_SIZE);
+
+        this.setMap(overwolrd, group);
+
+        // here would be the logic for placing the player within the map
+    }
+
+    setMap(map, group) {
+        if (this.currentMapGroup) {
+            this.scene.remove(this.currentMapGroup);
+        }
+
+        this.currentMap = map;
+        this.currentMapGroup = group;
+        this.scene.add(group);
+    }
+
+    _loop = (now) => {
+        if (!this._running) return;
+
+        const dt = Math.min((now - this._lastTime) / 1000, 0.05);
+        this._lastTime = now;
+
+        // update game state here 
+
+        // controls and render 
+        this.controls?.update();
+        this.renderer.render(this.scene, this.camera);
+
+        requestAnimationFrame(this._loop);
+    }
+
+    stop() {
+        this._running = false;
     }
 
 }
