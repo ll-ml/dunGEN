@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { Camera } from "./camera.js"
 import { Overworld } from "./overworld/overworld.js";
 import { buildOverworld } from "./overworld/renderOverworld.js";
 import { FrameCounter } from "./fpsCounter.js";
@@ -13,7 +13,8 @@ export class Game {
         this.renderer = null;
         this.scene = null;
         this.camera = null;
-        this.controls = null; 
+
+        this.camControls = null; 
 
 
         this.input = null;
@@ -63,6 +64,10 @@ export class Game {
             1000
           );
 
+          this.camControls = new Camera(this.camera, window);
+
+
+
           const worldSizeX = this.WORLD_W * this.TILE_SIZE;
           const worldSizeY = this.WORLD_H * this.TILE_SIZE;
           
@@ -73,12 +78,10 @@ export class Game {
           this.camera.position.set(0, worldSizeX * 0.9, worldSizeY * 0.9);
           this.camera.lookAt(0, 0, 0); // just hardcode the origin for now.
 
-          this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-
-          this.controls.minDistance = this.TILE_SIZE * 5;
-          this.controls.maxDistance = worldRadius * 1.5;
-          this.controls.minPolarAngle = Math.PI * 0.15;
-          this.controls.maxPolarAngle = Math.PI * 0.49;
+          this.camControls.minDistance = this.TILE_SIZE * 5;
+          this.camControls.maxDistance = worldRadius * 1.5;
+          this.camControls.minPolarAngle = Math.PI * 0.15;
+          this.camControls.maxPolarAngle = Math.PI * 0.49;
 
 
           this.scene.fog = new THREE.Fog(0x98c6ff, worldRadius * 1.2, worldRadius * 4);
@@ -135,7 +138,7 @@ export class Game {
         // update game state here 
 
         // controls and render 
-        this.controls?.update();
+        this.camControls?.update();
         this.renderer.render(this.scene, this.camera);
 
         this._frameCounter.update();
