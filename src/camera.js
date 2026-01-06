@@ -9,12 +9,12 @@ export class Camera {
 
     this.phi = 0;
     this.theta = 1.0;
-    this.radius = 100;
+    this.radius = 50;
 
     this.minTheta = 0.35;
     this.maxTheta = Math.PI / 2 - 0.15;
-    this.minRadius = 80;
-    this.maxRadius = 100;
+    this.minRadius = 20;
+    this.maxRadius = 50;
 
     this.rotationSpeed = 0.005;
     this.zoomSpeed = 0.25;
@@ -42,12 +42,6 @@ export class Camera {
         this.lastX = e.clientX;
         this.lastY = e.clientY;
       }
-      if (e.button === 2) {
-        e.preventDefault();
-        this.isRightDown = true;
-        this.lastX = e.clientX;
-        this.lastY = e.clientY;
-      }
     });
 
     this.domElement.addEventListener("mouseup", (e) => {
@@ -65,21 +59,7 @@ export class Camera {
         this.theta = Math.max(this.minTheta, Math.min(this.maxTheta, this.theta));
       }
 
-      if (this.isRightDown) {
-        const right = new THREE.Vector3();
-        const forward = new THREE.Vector3();
-        this.camera.getWorldDirection(forward);
-        forward.y = 0;
-        forward.normalize();
-
-        right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
-
-        const panScale = this.panSpeed * (this.radius / 300);
-        this.target.addScaledVector(right,   -dx * panScale);
-        this.target.addScaledVector(forward,  dy * panScale);
-      }
-
-      if (this.isMiddleDown || this.isRightDown) {
+      if (this.isMiddleDown) {
         this.lastX = e.clientX;
         this.lastY = e.clientY;
       }

@@ -119,8 +119,8 @@ export function generateOverworldWFC(width = 200, height = 200, {
     const runWeights = weights ?? {
         [TileId.WATER]: 20, 
         [TileId.SAND]: 20, 
-        [TileId.GRASS]: 95, 
-        [TileId.DENSE_GRASS]: 45, 
+        [TileId.GRASS]: 45, 
+        [TileId.DENSE_GRASS]: 25, 
         [TileId.FOREST]: 25,
     };
 
