@@ -3,8 +3,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 const TILE_SIZE = 11;
-const WIDTH     = 40;
-const HEIGHT    = 30;
+const WIDTH     = 150;
+const HEIGHT    = 100;
 const offsetX   = -(WIDTH  * TILE_SIZE) / 2;
 const offsetZ   = -(HEIGHT * TILE_SIZE) / 2;
 
@@ -48,7 +48,7 @@ export class DungeonObject {
       const raw       = gltf.scene;
       this.model      = SkeletonUtils.clone(raw);
       this.model.scale.setScalar(this.scale);
-      this.updatePosition();
+      //this.updatePosition();
 
       if (this.colormap) {
         const texLoader = new THREE.TextureLoader();
@@ -85,24 +85,39 @@ export class DungeonObject {
     });
   }
 
-  addTo(scene) {
-    return this._loadPromise.then(model => {
-      scene.add(model);
-      return model;
-    });
-  }
+ addTo(parent, map) {
+  return this._loadPromise.then(model => {
+    parent.add(model);
+    if (map) this.updatePosition(map);
+    return model;
+  });
+}
 
-  updatePosition() {
+  updatePosition(map) {
     if (!this.model) return;
-    const wx = offsetX + this.coords.x * TILE_SIZE + TILE_SIZE/2;
-    const wz = offsetZ + this.coords.y * TILE_SIZE + TILE_SIZE/2;
-    const wy = this.height;
+
+    if (!map) {
+      console.warn("DungeonObject.updatePosition called without map");
+      return;
+    }
+
+    const tileSize = map.tileSize ?? 11;
+    const offsetX = map.offsetX ?? 0;
+    const offsetZ = map.offsetZ ?? 0;
+
+    const wx = offsetX + this.coords.x * tileSize + tileSize / 2;
+    const wz = offsetZ + this.coords.y * tileSize + tileSize / 2;
+    const wy = this.height ?? 0;
+
     this.model.position.set(wx, wy, wz);
 
     this._recomputeBox();
-    this.helper.box.copy(this.hitbox);
-    this.helper.updateMatrixWorld(true);
+    if (this.helper) {
+      this.helper.box.copy(this.hitbox);
+      this.helper.updateMatrixWorld(true);
+    }
   }
+
 
   _recomputeBox() {
     this.model.updateWorldMatrix(true, false);

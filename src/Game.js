@@ -3,8 +3,10 @@ import { Camera } from "./camera.js"
 import { Overworld } from "./overworld/overworld.js";
 import { buildOverworld } from "./overworld/renderOverworld.js";
 import { FrameCounter } from "./fpsCounter.js";
-import { ContextMenuUI } from "./contextMenuUI.js"
-import { InputController } from "./InputController.js"
+import { ContextMenuUI } from "./contextMenuUI.js";
+import { InputController } from "./InputController.js";
+import { TickManager } from "./tickManager.js";
+import { Player } from "./player.js";
 
 export class Game {
     constructor( { tileSize = 11, worldW = 150, wolrdH = 100 } = {}) {
@@ -16,11 +18,14 @@ export class Game {
         this.scene = null;
         this.camera = null;
 
-        this.camControls = null; 
+        this.camControls = null;
+        this._camTarget = new THREE.Vector3(0, 0, 0);
+        this._camFollowLerp = 0.12;
 
 
         this.input = null;
         this.player = null;
+        this.playerSpawn = new THREE.Vector2(this.WORLD_W / 2, this.WORLD_H / 2);
 
         this.currentMap = null;
         this.currentMapGroup = null;
@@ -31,6 +36,7 @@ export class Game {
         this._frameCounter = null;
 
         this.ui = null;
+        this.tickManager = new TickManager(600);
     }
 
 
@@ -106,7 +112,7 @@ export class Game {
           this.camControls.maxPolarAngle = Math.PI * 0.49;
 
 
-          this.scene.fog = new THREE.Fog(0x98c6ff, worldRadius * 1.2, worldRadius * 4);
+          this.scene.fog = new THREE.Fog(0xa8c6ff, worldRadius * 1.2, worldRadius * 4);
     }
 
     _initLights() {
@@ -138,7 +144,14 @@ export class Game {
 
         this.setMap(overwolrd, group);
 
-        // here would be the logic for placing the player within the map
+        if (!this.player) {
+            this.player = new Player(this.playerSpawn.x, this.playerSpawn.y);
+            await this.player.addTo(this.currentMapGroup, this.currentMap);
+            this.player.updatePosition(this.currentMap);
+        } else {
+            await this.player.addTo(this.currentMapGroup, this.currentMap);
+            this.player.updatePosition(this.currentMap);
+        }
     }
 
     setMap(map, group) {
@@ -162,6 +175,25 @@ export class Game {
         // controls and render 
         this.camControls?.update();
         this.renderer.render(this.scene, this.camera);
+        this.tickManager.update();
+
+        if (this.player?.model) {
+            const p = this.player.model.position;
+
+            const desired = new THREE.Vector3(p.x, 0, p.z);
+
+            this._camTarget.lerp(desired, 1 - Math.pow(1 - this._camFollowLerp, dt * 60));
+
+            this.camControls.setTarget?.(this._camTarget);
+        }
+
+        if (this.player?.mixer) {
+            this.player.mixer.update(dt);
+        }
+
+        this.player?.updateMovement?.(dt, this.currentMap);
+
+        
 
         this._frameCounter.update();
         requestAnimationFrame(this._loop);

@@ -109,6 +109,15 @@ getActionsAt({ gridX, gridY, entity }) {
     run: async () => console.log("Clicked tile", gridX, gridY),
   });
 
+  if (this.isWalkableAt?.(gridX, gridY)) {
+    actions.push({
+      label: "Walk here",
+      run: async (game) => {
+        await game.player.moveToAsync(new THREE.Vector2(gridX, gridY), this);
+      },
+    });
+  }
+
   const glyph = this.tileGlyphAt(gridX, gridY);
   const FOREST_GLYPH = TILE_DEFS[TileId.FOREST].glyph;
   if (glyph === FOREST_GLYPH) {
@@ -123,6 +132,17 @@ getActionsAt({ gridX, gridY, entity }) {
   }
 
   return actions;
+}
+
+isWalkableTile(glyph) {
+  const water = TILE_DEFS[TileId.WATER].glyph;
+  return glyph !== water;
+}
+
+isWalkableAt(x, y) {
+  const g = this.denseMatrix[y]?.[x];
+  return g != null && this.isWalkableTile(g);
+
 }
 
 removeEntity(entity) {
