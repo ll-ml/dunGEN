@@ -3,6 +3,8 @@ import { Camera } from "./camera.js"
 import { Overworld } from "./overworld/overworld.js";
 import { buildOverworld } from "./overworld/renderOverworld.js";
 import { FrameCounter } from "./fpsCounter.js";
+import { ContextMenuUI } from "./contextMenuUI.js"
+import { InputController } from "./InputController.js"
 
 export class Game {
     constructor( { tileSize = 11, worldW = 150, wolrdH = 100 } = {}) {
@@ -27,6 +29,8 @@ export class Game {
         this._lastTime = 0;
 
         this._frameCounter = null;
+
+        this.ui = null;
     }
 
 
@@ -34,9 +38,27 @@ export class Game {
         this._initThree();
         this._initLights();
         this._initResizeHandler();
+        this.ui = {
+            ctxMenu: new ContextMenuUI(document.getElementById("ctxMenu")),
+            addStatus: (msg) => console.log(msg),
+            openStorageModal: (storage) => console.log("open storage", storage),
+            renderInventory: (inv) => console.log("render inventory", inv),
+        }
+
         this._frameCounter = new FrameCounter();
 
         await this.loadOverworld();
+
+        this.input = new InputController({
+            domElement: this.renderer.domElement,
+            camera: this.camera,
+            getActiveMap: () => this.currentMap,
+            ui: this.ui.ctxMenu,
+            onActionSelected: async (action) => {
+                await action.run(this);
+            },
+        });
+
 
         this._running = true; 
         this._lastTime = performance.now();
