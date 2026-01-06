@@ -8,6 +8,10 @@ export class InputController {
     this.onActionSelected = onActionSelected;
     this.ui = ui;
 
+    if (typeof this.getActiveMap !== "function") {
+      throw new Error("InputController: getActiveMap must be a function");
+    }
+
     this.raycaster = new THREE.Raycaster();
     this.mouseNDC = new THREE.Vector2();
 
@@ -46,12 +50,12 @@ export class InputController {
 
     const actions = map.getActionsAt({
       gridX: grid.x,
-      gridZ: grid.z,
+      gridY: grid.y,
       worldPt,
       entity: hitEntity,
     });
 
-    if (!actions.length) return;
+    if (!actions || actions.length === 0) return;
 
     this.ui.showContextMenu({
       x: e.clientX,

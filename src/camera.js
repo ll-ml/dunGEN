@@ -12,7 +12,7 @@ export class Camera {
     this.radius = 50;
 
     this.minTheta = 0.35;
-    this.maxTheta = Math.PI / 2 - 0.15;
+    this.maxTheta = Math.PI / 2 - 0.05;
     this.minRadius = 20;
     this.maxRadius = 50;
 

@@ -69,6 +69,88 @@ export class Overworld {
   return best;
 }
 
+getActionsAt({ gridX, gridY, entity }) {
+  const actions = [];
+
+  if (entity?.kind === "DroppedItem") {
+    actions.push({
+      label: `Pick up ${entity.item.name}`,
+      run: async (game) => {
+        await game.player.moveToAsync(entity.coords, this.denseMatrix);
+        game.player.addItem(entity.item, 1);
+        this.removeEntity(entity);
+        game.ui.renderInventory(game.player.inventory);
+      },
+    });
+  }
+
+  if (entity?.kind === "Storage") {
+    actions.push({
+      label: `Search ${entity.id}`,
+      run: async (game) => {
+        await game.player.moveToAsync(entity.coords, this.denseMatrix);
+        game.ui.openStorageModal(entity);
+      },
+    });
+  }
+
+  if (entity?.kind === "DungeonEntrance") {
+    actions.push({
+      label: "Enter dungeon",
+      run: async (game) => {
+        await game.player.moveToAsync(entity.coords, this.denseMatrix);
+        await game.enterDungeon({ entrance: entity });
+      },
+    });
+  }
+
+  actions.push({
+    label: `Debug: (${gridX}, ${gridY})`,
+    run: async () => console.log("Clicked tile", gridX, gridY),
+  });
+
+  if (this.isWalkableAt?.(gridX, gridY)) {
+    actions.push({
+      label: "Walk here",
+      run: async (game) => {
+        await game.player.moveToAsync(new THREE.Vector2(gridX, gridY), this);
+      },
+    });
+  }
+
+  const glyph = this.tileGlyphAt(gridX, gridY);
+  const FOREST_GLYPH = TILE_DEFS[TileId.FOREST].glyph;
+  if (glyph === FOREST_GLYPH) {
+    actions.push({
+      label: "Chop tree",
+      run: async (game) => {
+        //await game.player.moveToAsync(new THREE.Vector2(gridX, gridY), this.denseMatrix);
+        //game.ui.addStatus?.("You swing your axe at the tree.");
+        console.log("Player attempted to cut down tree");
+      },
+    });
+  }
+
+  return actions;
+}
+
+isWalkableTile(glyph) {
+  const water = TILE_DEFS[TileId.WATER].glyph;
+  return glyph !== water;
+}
+
+isWalkableAt(x, y) {
+  const g = this.denseMatrix[y]?.[x];
+  return g != null && this.isWalkableTile(g);
+
+}
+
+removeEntity(entity) {
+  const idx = this.entities.indexOf(entity);
+  if (idx >= 0) this.entities.splice(idx, 1);
+}
+
+
 
   async loadModelMap() {
     const loader = new GLTFLoader();

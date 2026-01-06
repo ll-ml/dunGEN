@@ -1,12 +1,11 @@
 import * as THREE from 'three';
 import { DungeonObject } from './dungeonObject.js';
 import { TileType } from './types.js';
-import { Enemy } from './enemy.js';
 import { Combatant } from './combat.js';
 import { SkillManager } from "./skills.js";
 
 
-const TILE_SIZE = 11;
+const TILE_SIZE =11;
 const WIDTH = 40;
 const HEIGHT = 30;
 const dungeonPixelWidth = WIDTH * TILE_SIZE;
@@ -94,83 +93,80 @@ export class Player extends DungeonObject {
     this.currentAction.play();
   }
 
-  computePath(dest, tiles) {
-    const dirs = [
-      new THREE.Vector2( 1,  0),
-      new THREE.Vector2(-1,  0),
-      new THREE.Vector2( 0,  1),
-      new THREE.Vector2( 0, -1),
-    ];
-    const rows = tiles.length, cols = tiles[0].length;
-  
-    // Distance & back‑pointers
-    const dist = Array(rows).fill().map(() => Array(cols).fill(Infinity));
-    const prev = Array(rows).fill().map(() => Array(cols).fill(null));
-  
-    // Min‑queue as array
-    const pq = [];
-    const start = this.coords.clone();
-    dist[start.y][start.x] = 0;
-    pq.push({ pos: start.clone(), d: 0 });
-  
-    // Dijkstra’s loop
-    while (pq.length) {
-      pq.sort((a, b) => a.d - b.d);
-      const { pos, d: curD } = pq.shift();
-  
-      // Once we’ve “reached” dest, stop searching
-      if (pos.equals(dest)) break;
-  
-      for (const dir of dirs) {
-        const nxt = pos.clone().add(dir);
-        if (
-          nxt.x < 0 || nxt.y < 0 ||
-          nxt.x >= cols || nxt.y >= rows ||
-          !this.canWalkDungeonTiles(tiles[nxt.y][nxt.x])
-        ) continue;
-  
-        const nd = curD + 1;
-        if (nd < dist[nxt.y][nxt.x]) {
-          dist[nxt.y][nxt.x] = nd;
-          prev[nxt.y][nxt.x] = pos.clone();  // store a clone
-          pq.push({ pos: nxt, d: nd });
-        }
+  computePath(dest, map) {
+  const dirs = [
+    new THREE.Vector2(1, 0),
+    new THREE.Vector2(-1, 0),
+    new THREE.Vector2(0, 1),
+    new THREE.Vector2(0, -1),
+  ];
+
+  const rows = map.height, cols = map.width;
+
+  const dist = Array.from({ length: rows }, () => Array(cols).fill(Infinity));
+  const prev = Array.from({ length: rows }, () => Array(cols).fill(null));
+
+  const pq = [];
+  const start = this.coords.clone();
+
+  dist[start.y][start.x] = 0;
+  pq.push({ pos: start.clone(), d: 0 });
+
+  while (pq.length) {
+    pq.sort((a, b) => a.d - b.d);
+    const { pos, d: curD } = pq.shift();
+
+    if (pos.equals(dest)) break;
+
+    for (const dir of dirs) {
+      const nxt = pos.clone().add(dir);
+
+      if (
+        nxt.x < 0 || nxt.y < 0 ||
+        nxt.x >= cols || nxt.y >= rows
+      ) continue;
+
+      if (!map.isWalkableAt(nxt.x, nxt.y)) continue;
+
+      const nd = curD + 1;
+      if (nd < dist[nxt.y][nxt.x]) {
+        dist[nxt.y][nxt.x] = nd;
+        prev[nxt.y][nxt.x] = pos.clone();
+        pq.push({ pos: nxt, d: nd });
       }
     }
-  
-    // Figure out where we actually ended up
-    let end = dest.clone();
-    if (!prev[end.y][end.x]) {
-      // dest was never reached — find nearest neighbor that was
-      let best = null, bestDist = Infinity;
-      for (const dir of dirs) {
-        const nb = end.clone().add(dir);
-        if (
-          nb.x < 0 || nb.y < 0 ||
-          nb.x >= cols || nb.y >= rows
-        ) continue;
-        if (dist[nb.y][nb.x] < bestDist) {
-          bestDist = dist[nb.y][nb.x];
-          best = nb.clone();
-        }
-      }
-      if (!best || bestDist === Infinity) {
-        // nowhere reachable
-        return [];
-      }
-      end = best;
-    }
-  
-    // Back‑track to build the path
-    const path = [];
-    let cur = end.clone();
-    while (!cur.equals(start)) {
-      path.push(cur.clone());
-      cur = prev[cur.y][cur.x];
-      if (!cur) break;  // safety
-    }
-    return path.reverse();
   }
+
+  let end = dest.clone();
+  if (end.x < 0 || end.y < 0 || end.x >= cols || end.y >= rows) return [];
+
+  if (!prev[end.y][end.x] && !end.equals(start)) {
+    let best = null, bestDist = Infinity;
+
+    for (const dir of dirs) {
+      const nb = end.clone().add(dir);
+      if (nb.x < 0 || nb.y < 0 || nb.x >= cols || nb.y >= rows) continue;
+      if (dist[nb.y][nb.x] < bestDist) {
+        bestDist = dist[nb.y][nb.x];
+        best = nb.clone();
+      }
+    }
+
+    if (!best || bestDist === Infinity) return [];
+    end = best;
+  }
+
+  const path = [];
+  let cur = end.clone();
+  while (!cur.equals(start)) {
+    path.push(cur.clone());
+    cur = prev[cur.y][cur.x];
+    if (!cur) return [];
+  }
+
+  return path.reverse();
+}
+
 
   tryMove(playerPos, tiles) {
     const rows = tiles.length;
@@ -307,59 +303,34 @@ export class Player extends DungeonObject {
   }
   
 
-  moveTo(dest, tiles, onArrive) {
-    if (!dest || !tiles) {
-      console.error("moveTo called with undefined dest or tiles");
-      return;
-    }
-
-    if (!(dest instanceof THREE.Vector2)) {
-      console.error("dest is invalid type must be Vec2");
-      return;
-    }
-    this.path = this.computePath(dest, tiles);
-    if (this.path.length === 0) return; // this should get rid of the walking bug
+  moveTo(dest, map, onArrive) {
+    this.path = this.computePath(dest, map);
+    if (this.path.length === 0) return;
     this._onArrive = onArrive || null;
-    this._advanceTarget();
-    this._playAction('walk');
+    this._advanceTarget(map);
+    this._playAction("walk");
   }
 
-  moveToAsync(dest, tiles) {
-    // return a Promise that resolves once we’ve reached `dest`
-    return new Promise(resolve => {
-      // call your normal moveTo, but pass `resolve` as the “onArrive” callback
-      this.moveTo(dest, tiles, resolve);
-    });
+  moveToAsync(dest, map) {
+    return new Promise(resolve => this.moveTo(dest, map, resolve));
   }
-  
 
-  _advanceTarget() {
+  _advanceTarget(map) {
     if (this.path.length === 0) {
       this._targetWorldPos = null;
-      this._playAction('idle');
-      if (this._onArrive) {
-        this._onArrive();
-        this.onArrive = null;
-      }
+      this._playAction("idle");
+      if (this._onArrive) { this._onArrive(); this._onArrive = null; }
       return;
     }
 
     const next = this.path[0];
+    const w = map.gridToWorld(next.x, next.y);
 
-    //compute tiles world center 
+    this._targetWorldPos = new THREE.Vector3(w.x, this.height, w.z);
 
-    this._targetWorldPos = new THREE.Vector3(
-      -dungeonPixelWidth/2 + next.x * TILE_SIZE + TILE_SIZE / 2,
-      this.height,
-      -dungeonPixelHeight/2 + next.y * TILE_SIZE + TILE_SIZE / 2
-    );
-
-    this.model.lookAt(
-      this._targetWorldPos.x,
-      this.model.position.y,
-      this._targetWorldPos.z
-    );
+    this.model.lookAt(this._targetWorldPos.x, this.model.position.y, this._targetWorldPos.z);
   }
+
 
   _playAction(name) {
     const next = this.actions[name];
@@ -390,12 +361,8 @@ export class Player extends DungeonObject {
     this.mixer.addEventListener('finished', onFinish);
   }
 
-  updateMovement(deltaSeconds) {
-    if (this.path.length === 0) {
-      this._targetWorldPos = null;
-      return; // This should stop invalid pathing bugs
-    }
-    if (!this._targetWorldPos) return; 
+  updateMovement(deltaSeconds, map) {
+    if (this.path.length === 0 || !this._targetWorldPos) return;
 
     const dir = this._targetWorldPos.clone().sub(this.model.position);
     const dist = dir.length();
@@ -406,15 +373,15 @@ export class Player extends DungeonObject {
 
       const reached = this.path.shift();
       this.coords.set(reached.x, reached.y);
-      this.updatePosition();
 
-      this._advanceTarget();
+      this.updatePosition(map);
+
+      this._advanceTarget(map);
     } else {
       dir.normalize();
       this.model.position.add(dir.multiplyScalar(step));
     }
   }
-  
 
   updatePathStep() {
     if (!this.path || this.path.length === 0) {
@@ -424,7 +391,7 @@ export class Player extends DungeonObject {
     const nextTile = this.path.shift();
 
     this.coords.set(nextTile.x, nextTile.y);
-    this.updatePosition();
+    //this.updatePosition();
     // playaction(walk)
   }
 
