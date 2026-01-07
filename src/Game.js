@@ -152,6 +152,12 @@ export class Game {
             await this.player.addTo(this.currentMapGroup, this.currentMap);
             this.player.updatePosition(this.currentMap);
         }
+
+        this.currentMap.spawnDungeonEntrances?.({ count: 6, minSpacing: 10 });
+
+        for (const ent of this.currentMap.entities) {
+            await ent.addTo(this.currentMapGroup, this.currentMap);
+        }
     }
 
     setMap(map, group) {
@@ -177,7 +183,13 @@ export class Game {
         this.renderer.render(this.scene, this.camera);
         this.tickManager.update();
 
-        if (this.player?.model) {
+        if (this.player?.mixer) {
+            this.player.mixer.update(dt);
+        }
+
+        this.player?.updateMovement?.(dt, this.currentMap);
+
+         if (this.player?.model) {
             const p = this.player.model.position;
 
             const desired = new THREE.Vector3(p.x, 0, p.z);
@@ -186,12 +198,6 @@ export class Game {
 
             this.camControls.setTarget?.(this._camTarget);
         }
-
-        if (this.player?.mixer) {
-            this.player.mixer.update(dt);
-        }
-
-        this.player?.updateMovement?.(dt, this.currentMap);
 
         
 

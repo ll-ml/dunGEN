@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { generateOverworldWFC, TILE_DEFS, TileId } from "./wfc.js";
+import { DungeonEntrance } from "../DungeonEntrance.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 export class Overworld {
@@ -148,6 +149,39 @@ isWalkableAt(x, y) {
 removeEntity(entity) {
   const idx = this.entities.indexOf(entity);
   if (idx >= 0) this.entities.splice(idx, 1);
+}
+
+spawnDungeonEntrances({ count = 8, minSpacing = 8, rng = Math.random } = {}) {
+  const placed = [];
+
+  const tryPick = () => {
+    const x = Math.floor(rng() * (this.width - 2)) + 1;
+    const y = Math.floor(rng() * (this.height - 2)) + 1;
+    return { x, y };
+  };
+
+  const isFarEnough = (x, y) => {
+    for (const p of placed) {
+      const dx = p.x - x;
+      const dy = p.y - y;
+      if ((dx * dx + dy * dy) < (minSpacing * minSpacing)) return false;
+    }
+    return true;
+  };
+
+  let guard = 0;
+  while (placed.length < count && guard++ < count * 200) {
+    const { x, y } = tryPick();
+
+    if (!this.isWalkableAt(x, y)) continue;
+    if (!isFarEnough(x, y)) continue;
+
+    const ent = new DungeonEntrance(x, y);
+    this.entities.push(ent);
+    placed.push({ x, y });
+  }
+
+  return placed.length;
 }
 
 

@@ -3,10 +3,6 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 const TILE_SIZE = 11;
-const WIDTH     = 150;
-const HEIGHT    = 100;
-const offsetX   = -(WIDTH  * TILE_SIZE) / 2;
-const offsetZ   = -(HEIGHT * TILE_SIZE) / 2;
 
 
 /**
