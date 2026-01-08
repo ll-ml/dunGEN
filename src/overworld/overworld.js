@@ -2,7 +2,8 @@ import * as THREE from "three";
 import { generateOverworldWFC, TILE_DEFS, TileId } from "./wfc.js";
 import { DungeonEntrance } from "../DungeonEntrance.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-
+import { StatusBar } from "../statusBar.js"
+ 
 export class Overworld {
   constructor(width, height, { seed = null, weights = null, tileSize = 11 } = {}) {
     this.width = width;
@@ -21,6 +22,8 @@ export class Overworld {
     this.entities = [];
 
     this.groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+
+    this.status = new StatusBar();
   }
 
   gridToWorld(x, y) {
@@ -99,7 +102,7 @@ getActionsAt({ gridX, gridY, entity }) {
     actions.push({
       label: "Enter dungeon",
       run: async (game) => {
-        await game.player.moveToAsync(entity.coords, this.denseMatrix);
+        await game.player.moveToAsync(entity.coords.clone(), this);
         await game.enterDungeon({ entrance: entity });
       },
     });
@@ -125,9 +128,9 @@ getActionsAt({ gridX, gridY, entity }) {
     actions.push({
       label: "Chop tree",
       run: async (game) => {
-        //await game.player.moveToAsync(new THREE.Vector2(gridX, gridY), this.denseMatrix);
+        await game.player.moveToAsync(new THREE.Vector2(gridX, gridY), this);
         //game.ui.addStatus?.("You swing your axe at the tree.");
-        console.log("Player attempted to cut down tree");
+        this.status.addStatus("You swing your axe at the tree.");
       },
     });
   }

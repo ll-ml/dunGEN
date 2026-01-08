@@ -2,23 +2,24 @@ import * as THREE from 'three';
 import { TileType } from './types.js';
 import  { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
-const WIDTH = 40;   // columns
-const HEIGHT = 30;  // rows
-const TILE_SIZE = 11;
 
-export function buildDungeon(scene, modelMap, dungeonTiles) {
+export function buildDungeon(group, modelMap, dungeonTiles, TILE_SIZE) {
 
-    while (scene.children.length) scene.remove(scene.children[0]);
+    while (group.children.length) group.remove(group.children[0]);
 
-    const px = WIDTH * TILE_SIZE;
-    const pz = HEIGHT * TILE_SIZE;
+    const height = dungeonTiles.length;
+    const width = dungeonTiles[0]?.length ?? 0;
+    if (!width || !height) return;
+
+    const px = width * TILE_SIZE;
+    const pz = height * TILE_SIZE;
     const offsetX = -px / 2;
     const offsetZ = -pz / 2;
 
     const dirtCoords = [];
 
-    for (let y = 0; y < HEIGHT; y++) {
-        for (let x = 0; x < WIDTH; x++) {
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
             const tile = dungeonTiles[y][x];
             if (tile === TileType.DIRT || tile === TileType.PEBBLE_DIRT || tile === TileType.ROCK_DIRT) {
                 dirtCoords.push([x, y]); // better than using THREE.Vector2D? 
@@ -35,7 +36,7 @@ export function buildDungeon(scene, modelMap, dungeonTiles) {
                         offsetZ + y * TILE_SIZE + TILE_SIZE / 2
                     )
                     doorWayInst.scale.setScalar(TILE_SIZE);
-                    scene.add(doorWayInst);
+                    group.add(doorWayInst);
                 }
                 // this actually allows rocks in with floor underneath not sure if this code is worth having at the moment
                 if (tile === TileType.ROCK) {
@@ -49,7 +50,7 @@ export function buildDungeon(scene, modelMap, dungeonTiles) {
                     );
 
                     standardFloorInst.scale.setScalar(TILE_SIZE);
-                    scene.add(standardFloorInst);
+                    group.add(standardFloorInst);
                 }
                 const proto = modelMap[tile];
                 if (!proto) continue;
@@ -61,7 +62,7 @@ export function buildDungeon(scene, modelMap, dungeonTiles) {
                     offsetZ + y * TILE_SIZE + TILE_SIZE / 2
                 );
                 modelInstance.scale.setScalar(TILE_SIZE); // Hard code constant for now
-                scene.add(modelInstance);
+                group.add(modelInstance);
             
             }
         }
@@ -81,6 +82,6 @@ export function buildDungeon(scene, modelMap, dungeonTiles) {
         const merged = mergeGeometries(geos, false);
         const brownDirtMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
         const mesh = new THREE.Mesh(merged, brownDirtMaterial);
-        scene.add(mesh);
+        group.add(mesh);
     }
 }

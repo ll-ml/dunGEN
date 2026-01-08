@@ -8,12 +8,20 @@ import { generateLoot } from "./loot.js";
 
 
 export class Dungeon {
-    constructor(width, height, theme = (Math.random() < 0.25 ? 'arena' : 'default')) {
+    constructor(width, height, { tileSize = 11, theme = (Math.random() < 0.25 ? "arena" : "default") } = {}) {
         this.width = width;
         this.height = height;
+        this.tileSize = tileSize;
+
+        this.offsetX = -(this.width * this.tileSize) / 2;
+        this.offsetZ = -(this.height * this.tileSize) / 2;
+
+        this.groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+
+
         this.denseMatrix = this.createEmptyMatrix();
         this.theme = theme;
-        this.sparseMatrix = [];
+        this.entities = [];
         this.dungeonRooms = [];
         this.statusMessages = [];
     }
@@ -286,25 +294,20 @@ export class Dungeon {
         const pz = this.randInt(room.y + 1, room.y + room.height - 2)
 
         const player = new Player(px, pz);
-        this.sparseMatrix.push(player); // just push them on the sparse matrix
+        this.entities.push(player); // just push them on the sparse matrix
     }
 
-    placePlayer(existingPlayer) {
-        this.sparseMatrix.splice(0, 1);
-      
-        const room = this.dungeonRooms[
-          this.randInt(0, this.dungeonRooms.length - 1)
-        ];
-        const px = this.randInt(room.x + 1, room.x + room.width  - 2);
-        const pz = this.randInt(room.y + 1, room.y + room.height - 2);
-      
-        existingPlayer.coords.set(px, pz);
-        existingPlayer.updatePosition();
-      
-        this.sparseMatrix.unshift(existingPlayer);
-      
-        return existingPlayer;
-      }
+    placePlayer(player) {
+        const room = this.dungeonRooms[this.randInt(0, this.dungeonRooms.length - 1)];
+        const px = this.randInt(room.x + 1, room.x + room.width - 2);
+        const py = this.randInt(room.y + 1, room.y + room.height - 2);
+
+        player.coords.set(px, py);
+        player.path = [];
+        player._targetWorldPos = null;
+
+        player.updatePosition(this);
+    }
 
     spawnEnemies() {
         for (let i = 0; i < 4; i++) {
@@ -335,7 +338,7 @@ export class Dungeon {
                         "Orc Warrior",
                         50, ex, ey, 8, 10,);
                 }
-                this.sparseMatrix.push(hardEnemy);
+                this.entities.push(hardEnemy);
             } else {
                 let easyEnemy = new Enemy("./public/character-zombie.glb",
                      "Zombie",
@@ -346,7 +349,7 @@ export class Dungeon {
                         colormap: "./public/Textures/colormap2.png"
 
                     });
-                this.sparseMatrix.push(easyEnemy);
+                this.entities.push(easyEnemy);
             }
         }
     }
@@ -372,7 +375,7 @@ export class Dungeon {
                 const count = this.randInt(0, 3);
                 const contents = generateLoot(count);
                 
-                this.sparseMatrix.push(
+                this.entities.push(
                     new StorageItem("Barrel", x, y, contents)
                 );
                 anySpawned = true;
@@ -391,15 +394,70 @@ export class Dungeon {
             const contents = generateLoot(numItems);
             
 
-            this.sparseMatrix.push(
+            this.entities.push(
                 new StorageItem("Barrel", x, y, contents)
             );
          }
     }
 
+
     get player() {
-        return this.sparseMatrix.find(obj => obj instanceof Player); // This should go by ID at some point rather than inst of
+        return this.entities.find(obj => obj instanceof Player); // This should go by ID at some point rather than inst of
     }
+
+   gridToWorld(x, y) {
+    return new THREE.Vector3(
+        this.offsetX + x * this.tileSize + this.tileSize / 2,
+        0,
+        this.offsetZ + y * this.tileSize + this.tileSize / 2
+        );
+    }
+
+
+    worldToGrid(worldPt) {
+        const gx = Math.floor((worldPt.x - this.offsetX) / this.tileSize);
+        const gy = Math.floor((worldPt.z - this.offsetZ) / this.tileSize);
+        if (gx < 0 || gy < 0 || gx >= this.width || gy >= this.height) return null;
+        return { x: gx, y: gy };
+    }
+
+    pickWorldPoint(raycaster) {
+        const out = new THREE.Vector3();
+        if (!raycaster.ray.intersectPlane(this.groundPlane, out)) return null;
+        return out;
+    }
+
+    pickEntity(raycaster) {
+        let best = null;
+        let bestDist = Infinity;
+        const tmp = new THREE.Vector3();
+
+        for (const obj of this.entities) {
+            if (!obj.model) continue;
+            if (raycaster.ray.intersectBox(obj.hitbox, tmp)) {
+            const d = raycaster.ray.origin.distanceTo(tmp);
+            if (d < bestDist) { bestDist = d; best = obj; }
+        }
+        }
+        return best;
+    }
+
+    isWalkableAt(x, y) {
+        const t = this.denseMatrix[y]?.[x];
+        if (t == null) return false;
+
+        switch (t) {
+            case TileType.WALL:
+            case TileType.WATER:
+            case TileType.DIRT:
+            case TileType.PEBBLE_DIRT:
+            case TileType.ROCK_DIRT:
+            return false;
+            default:
+            return true;
+    }
+}
+
 
     /*
         TODO: Remove pools, make it another tile structure.
@@ -437,12 +495,60 @@ export class Dungeon {
         });
     }
 
+getActionsAt({ gridX, gridY, entity }) {
+  const actions = [];
+
+  if (entity?.kind === "Storage") {
+    actions.push({
+      label: `Search ${entity.id}`,
+      run: async (game) => {
+        await game.player.moveToAsync(entity.coords, this);
+        game.ui.openStorageModal(entity);
+      },
+    });
+  }
+
+  if (entity?.kind === "Enemy") {
+    actions.push({
+      label: `Attack ${entity.name ?? "enemy"}`,
+      run: async (game) => {
+        // later: game.combatManager.engage(...)
+        await game.player.moveToAsync(entity.coords.clone().add(new THREE.Vector2(-1, 0)), this);
+      },
+    });
+  }
+
+  const tile = this.denseMatrix[gridY]?.[gridX];
+
+  if (tile === TileType.DOOR) {
+    actions.push({
+      label: "Open door",
+      run: async (game) => {
+        await game.player.moveToAsync(new THREE.Vector2(gridX, gridY), this);
+        await game.enterDungeon({ regenerate: true });
+      },
+    });
+  }
+
+  if (this.isWalkableAt(gridX, gridY)) {
+    actions.push({
+      label: "Walk here",
+      run: async (game) => {
+        await game.player.moveToAsync(new THREE.Vector2(gridX, gridY), this);
+      },
+    });
+  }
+
+  return actions;
+}
+
+
 
 
     async generateDungeon(player = null) {
         this.denseMatrix = this.createEmptyMatrix();
         this.theme = (Math.random() < 0.25 ? 'arena' : 'default'); // should make this generally happen only at one point
-        this.sparseMatrix = [];
+        //this.entities = [];
         this.dungeonRooms = [];
 
         this.generateRooms();
@@ -452,11 +558,7 @@ export class Dungeon {
         this.connectRooms();
         this.placeDoors();
 
-        if (player) {
-            this.placePlayer(player);
-        } else {
-            await this.spawnPlayer();
-        }
+        this.placePlayer(player);
 
         this.spawnLoot();
 

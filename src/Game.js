@@ -6,6 +6,8 @@ import { FrameCounter } from "./fpsCounter.js";
 import { ContextMenuUI } from "./contextMenuUI.js";
 import { InputController } from "./InputController.js";
 import { TickManager } from "./tickManager.js";
+import { Dungeon } from "./dungeon.js";
+import { buildDungeon } from "./render.js";
 import { Player } from "./player.js";
 
 export class Game {
@@ -168,6 +170,28 @@ export class Game {
         this.currentMap = map;
         this.currentMapGroup = group;
         this.scene.add(group);
+    }
+
+    async enterDungeon({ width = 40, height = 30, regenerate = true } = {}) {
+        const dungeon = new Dungeon(width, height, { tileSize: this.TILE_SIZE });
+
+
+        await dungeon.generateDungeon(this.player);
+
+
+        const modelMap = await dungeon.loadModelMap();
+
+        const group = new THREE.Group();
+        buildDungeon(group, modelMap, dungeon.denseMatrix, this.TILE_SIZE);
+
+        this.setMap(dungeon, group);
+
+        for (const e of dungeon.entities) {
+            await e.addTo(this.currentMapGroup, this.currentMap);
+        }
+
+        await this.player.addTo(this.currentMapGroup, this.currentMap);
+        this.player.updatePosition(this.currentMap);
     }
 
     _loop = (now) => {
