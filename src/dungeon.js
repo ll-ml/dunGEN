@@ -24,6 +24,11 @@ export class Dungeon {
         this.entities = [];
         this.dungeonRooms = [];
         this.statusMessages = [];
+
+        this.env = {
+          background: 0x2f2221,
+          fog: null, // no fog right now
+        };
     }
 
     async loadModelMap() {

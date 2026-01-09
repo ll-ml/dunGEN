@@ -170,6 +170,24 @@ export class Game {
         this.currentMap = map;
         this.currentMapGroup = group;
         this.scene.add(group);
+
+        this._applyEnvironmentFromMap(map);
+    }
+
+    _applyEnvironmentFromMap(map) {
+        const env = map?.env ?? {};
+
+        if (env.background != null) {
+            this.scene.background = new THREE.Color(env.background);
+        } else {
+            this.scene.background = null; // ideally should default i think
+        }
+
+        if (env.fog && env.fog.color != null) {
+            this.scene.fog = new THREE.Fog(env.fog.color, env.fog.near, env.fog.far);
+        } else {
+            this.scene.fog = null;
+        }
     }
 
     async enterDungeon({ width = 40, height = 30, regenerate = true } = {}) {

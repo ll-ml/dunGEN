@@ -23,7 +23,14 @@ export class Overworld {
 
     this.groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
-    this.status = new StatusBar();
+    this.status = new StatusBar(); // TODO: this really should be in the UI rather than a direct member of overworld
+
+    const worldRadius = 50;
+
+    this.env = { 
+      background: 0x98c6ff,
+      fog: { color: 0xa8c6ff, near: worldRadius * 1.2, far: worldRadius * 4},
+    };
   }
 
   gridToWorld(x, y) {
@@ -110,7 +117,7 @@ getActionsAt({ gridX, gridY, entity }) {
 
   actions.push({
     label: `Debug: (${gridX}, ${gridY})`,
-    run: async () => console.log("Clicked tile", gridX, gridY),
+    run: async () => this.status.addStatus(`You clicked on tile: (${gridX}, ${gridY}) this tile is of kind: ${this.tileGlyphAt(gridX, gridY)}`),
   });
 
   if (this.isWalkableAt?.(gridX, gridY)) {
