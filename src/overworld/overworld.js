@@ -110,7 +110,7 @@ getActionsAt({ gridX, gridY, entity }) {
 
   actions.push({
     label: `Debug: (${gridX}, ${gridY})`,
-    run: async () => console.log("Clicked tile", gridX, gridY),
+    run: async () => this.status.addStatus(`You clicked on tile: (${gridX}, ${gridY}) this tile is of kind: ${this.tileGlyphAt(gridX, gridY)}`),
   });
 
   if (this.isWalkableAt?.(gridX, gridY)) {
