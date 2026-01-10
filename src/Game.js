@@ -38,6 +38,7 @@ export class Game {
         this._frameCounter = null;
 
         this.ui = null;
+        this._overworldRenderHandle = null;
         this.tickManager = new TickManager(600);
     }
 
@@ -142,7 +143,8 @@ export class Game {
         const modelMap = await overwolrd.loadModelMap();
 
         const group = new THREE.Group();
-        buildOverworld(group, modelMap, overwolrd.denseMatrix, this.TILE_SIZE);
+        const renderHandle = buildOverworld(group, modelMap, overwolrd.denseMatrix, this.TILE_SIZE);
+        this._overworldRenderHandle = renderHandle;
 
         this.setMap(overwolrd, group);
 
@@ -180,7 +182,7 @@ export class Game {
         if (env.background != null) {
             this.scene.background = new THREE.Color(env.background);
         } else {
-            this.scene.background = null; // ideally should default i think
+            this.scene.background = null; // this needs a default value rather than none
         }
 
         if (env.fog && env.fog.color != null) {
@@ -210,6 +212,9 @@ export class Game {
 
         await this.player.addTo(this.currentMapGroup, this.currentMap);
         this.player.updatePosition(this.currentMap);
+
+        //DEBUG: this is used for easy of use of stats need to remove when set
+        console.log(this.currentMap);
     }
 
     _loop = (now) => {
@@ -218,19 +223,21 @@ export class Game {
         const dt = Math.min((now - this._lastTime) / 1000, 0.05);
         this._lastTime = now;
 
-        // update game state here 
 
         // controls and render 
         this.camControls?.update();
         this.renderer.render(this.scene, this.camera);
         this.tickManager.update();
 
+        //player anims
         if (this.player?.mixer) {
             this.player.mixer.update(dt);
         }
 
         this.player?.updateMovement?.(dt, this.currentMap);
 
+
+        //camera movement
          if (this.player?.model) {
             const p = this.player.model.position;
 
@@ -239,6 +246,11 @@ export class Game {
             this._camTarget.lerp(desired, 1 - Math.pow(1 - this._camFollowLerp, dt * 60));
 
             this.camControls.setTarget?.(this._camTarget);
+        }
+
+        //nice water anims
+        if (this._overworldRenderHandle?.waterMaterial) {
+            this._overworldRenderHandle.waterMaterial.uniforms.uTime.value += dt;
         }
 
         

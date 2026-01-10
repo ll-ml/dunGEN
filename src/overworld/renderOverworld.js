@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { TILE_DEFS, TileId } from "./wfc.js";
+import { makeAnimatedWaterMaterial } from "../waterMaterial.js";
 
 export function buildOverworld(parent, modelMap, glyphGrid, TILE_SIZE) {
   // IMPORTANT: do NOT remove lights. Clear only a world group.
@@ -39,6 +40,8 @@ export function buildOverworld(parent, modelMap, glyphGrid, TILE_SIZE) {
   let denseOverlayCount = 0;
   let treeCount = 0;        // overlay for T
 
+  let waterMaterial = null;
+
   for (let y = 0; y < height; y++) {
     const row = glyphGrid[y];
     for (let x = 0; x < width; x++) {
@@ -69,10 +72,37 @@ export function buildOverworld(parent, modelMap, glyphGrid, TILE_SIZE) {
   const offsetX = -px / 2;
   const offsetZ = -pz / 2;
 
+  // HERE IS THE WATER PLANE TO FIX VISUAL ISSUES
+  const underlay = new THREE.Mesh(
+    new THREE.PlaneGeometry(px * 1.05, pz * 1.05),
+    new THREE.MeshStandardMaterial({ color: 0x08304a })
+  );
+  underlay.rotation.x = -Math.PI / 2;
+  underlay.position.set(0, -1.3, 0);
+  underlay.receiveShadow = true;
+  underlay.renderOrder = -10;
+  underlay.userData.isUnderlay = true;
+  underlay.raycast = () => null;
+  parent.add(underlay);
+
   const inst = {};
 
   if (waterCount > 0 && modelMap[GLYPH_WATER]) {
-    inst.water = makeInstancedMeshesFromProto(modelMap[GLYPH_WATER], waterCount);
+    //inst.water = makeInstancedMeshesFromProto(modelMap[GLYPH_WATER], waterCount);
+    //inst.water.forEach((m) => parent.add(m));
+
+    waterMaterial = makeAnimatedWaterMaterial();
+
+    inst.water = makeInstancedMeshesFromProto(modelMap[GLYPH_WATER], waterCount)
+      .map((im) => {
+        im.material = waterMaterial;
+        return im;
+      });
+    inst.water.forEach((m) => { 
+      m.frustumCulled = false; 
+      parent.add(m);
+    });
+
     inst.water.forEach((m) => parent.add(m));
   }
 
@@ -159,4 +189,6 @@ export function buildOverworld(parent, modelMap, glyphGrid, TILE_SIZE) {
     if (!arr) continue;
     for (const im of arr) im.instanceMatrix.needsUpdate = true;
   }
+
+  return { waterMaterial };
 }
