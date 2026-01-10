@@ -31,6 +31,8 @@ export class Overworld {
       background: 0x98c6ff,
       fog: { color: 0xa8c6ff, near: worldRadius * 1.2, far: worldRadius * 4},
     };
+
+    this.isDungeon = false;
   }
 
   gridToWorld(x, y) {

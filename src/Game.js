@@ -9,6 +9,7 @@ import { TickManager } from "./tickManager.js";
 import { Dungeon } from "./dungeon.js";
 import { buildDungeon } from "./render.js";
 import { Player } from "./player.js";
+import { WeatherSystem } from "./weather.js";
 
 export class Game {
     constructor( { tileSize = 11, worldW = 150, wolrdH = 100 } = {}) {
@@ -38,6 +39,10 @@ export class Game {
         this._frameCounter = null;
 
         this.ui = null;
+        this._overworldRenderHandle = null;
+
+        this.weather = null;
+        this._weatherEnabled = true;
         this.tickManager = new TickManager(600);
     }
 
@@ -52,6 +57,15 @@ export class Game {
             openStorageModal: (storage) => console.log("open storage", storage),
             renderInventory: (inv) => console.log("render inventory", inv),
         }
+
+        this.weather = new WeatherSystem({
+            areaSize: 800,
+            height: 260,
+            intensity: 4.0,
+            mode: "none",
+        });
+        this.weather.addTo(this.scene);
+
 
         this._frameCounter = new FrameCounter();
 
@@ -142,7 +156,8 @@ export class Game {
         const modelMap = await overwolrd.loadModelMap();
 
         const group = new THREE.Group();
-        buildOverworld(group, modelMap, overwolrd.denseMatrix, this.TILE_SIZE);
+        const renderHandle = buildOverworld(group, modelMap, overwolrd.denseMatrix, this.TILE_SIZE);
+        this._overworldRenderHandle = renderHandle;
 
         this.setMap(overwolrd, group);
 
@@ -172,6 +187,11 @@ export class Game {
         this.scene.add(group);
 
         this._applyEnvironmentFromMap(map);
+
+        if (this.weather) {
+            this.weather.setMode(map?.isDungeon ? "none" : "rain");
+            this.weather.setIntensity(map?.isDungeon ? 0.0 : 1.0);
+        }
     }
 
     _applyEnvironmentFromMap(map) {
@@ -180,7 +200,7 @@ export class Game {
         if (env.background != null) {
             this.scene.background = new THREE.Color(env.background);
         } else {
-            this.scene.background = null; // ideally should default i think
+            this.scene.background = null; // this needs a default value rather than none
         }
 
         if (env.fog && env.fog.color != null) {
@@ -210,6 +230,9 @@ export class Game {
 
         await this.player.addTo(this.currentMapGroup, this.currentMap);
         this.player.updatePosition(this.currentMap);
+
+        //DEBUG: this is used for easy of use of stats need to remove when set
+        console.log(this.currentMap);
     }
 
     _loop = (now) => {
@@ -218,19 +241,21 @@ export class Game {
         const dt = Math.min((now - this._lastTime) / 1000, 0.05);
         this._lastTime = now;
 
-        // update game state here 
 
         // controls and render 
         this.camControls?.update();
         this.renderer.render(this.scene, this.camera);
         this.tickManager.update();
 
+        //player anims
         if (this.player?.mixer) {
             this.player.mixer.update(dt);
         }
 
         this.player?.updateMovement?.(dt, this.currentMap);
 
+
+        //camera movement
          if (this.player?.model) {
             const p = this.player.model.position;
 
@@ -239,6 +264,17 @@ export class Game {
             this._camTarget.lerp(desired, 1 - Math.pow(1 - this._camFollowLerp, dt * 60));
 
             this.camControls.setTarget?.(this._camTarget);
+        }
+
+        //nice water anims
+        if (this._overworldRenderHandle?.waterMaterial) {
+            this._overworldRenderHandle.waterMaterial.uniforms.uTime.value += dt;
+        }
+
+        // dynamic weather 
+        if (this.weather && this._weatherEnabled) {
+            const anchor = this.player?.model?.position ?? this.camera?.position;
+            this.weather.update(dt, anchor);
         }
 
         
