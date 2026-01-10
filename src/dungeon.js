@@ -29,6 +29,8 @@ export class Dungeon {
           background: 0x2f2221,
           fog: null, // no fog right now
         };
+
+        this.isDungeon = true;
     }
 
     async loadModelMap() {

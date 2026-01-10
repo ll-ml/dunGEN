@@ -9,6 +9,7 @@ import { TickManager } from "./tickManager.js";
 import { Dungeon } from "./dungeon.js";
 import { buildDungeon } from "./render.js";
 import { Player } from "./player.js";
+import { WeatherSystem } from "./weather.js";
 
 export class Game {
     constructor( { tileSize = 11, worldW = 150, wolrdH = 100 } = {}) {
@@ -39,6 +40,9 @@ export class Game {
 
         this.ui = null;
         this._overworldRenderHandle = null;
+
+        this.weather = null;
+        this._weatherEnabled = true;
         this.tickManager = new TickManager(600);
     }
 
@@ -53,6 +57,15 @@ export class Game {
             openStorageModal: (storage) => console.log("open storage", storage),
             renderInventory: (inv) => console.log("render inventory", inv),
         }
+
+        this.weather = new WeatherSystem({
+            areaSize: 800,
+            height: 260,
+            intensity: 4.0,
+            mode: "none",
+        });
+        this.weather.addTo(this.scene);
+
 
         this._frameCounter = new FrameCounter();
 
@@ -174,6 +187,11 @@ export class Game {
         this.scene.add(group);
 
         this._applyEnvironmentFromMap(map);
+
+        if (this.weather) {
+            this.weather.setMode(map?.isDungeon ? "none" : "rain");
+            this.weather.setIntensity(map?.isDungeon ? 0.0 : 1.0);
+        }
     }
 
     _applyEnvironmentFromMap(map) {
@@ -251,6 +269,12 @@ export class Game {
         //nice water anims
         if (this._overworldRenderHandle?.waterMaterial) {
             this._overworldRenderHandle.waterMaterial.uniforms.uTime.value += dt;
+        }
+
+        // dynamic weather 
+        if (this.weather && this._weatherEnabled) {
+            const anchor = this.player?.model?.position ?? this.camera?.position;
+            this.weather.update(dt, anchor);
         }
 
         

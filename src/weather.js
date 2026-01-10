@@ -16,6 +16,11 @@ export class WeatherSystem {
     this._snow = null;
     this._rain = null;
 
+    this._followPos = new THREE.Vector3(0, 0, 0);
+    this._followSpeed = 0.5; // increase here to have tigher follow lower it will lag behind a bit
+
+    this._half = this.areaSize * 0.5;
+
     this._wind = new THREE.Vector3(8, 0, 2);
   }
 
@@ -32,6 +37,13 @@ export class WeatherSystem {
     this.mode = mode;
     this._rebuild();
   }
+
+  setAreaSize(v) {
+    this.areaSize = v;
+    this._half = v * 0.5;
+    if (this.mode !== "none") this._rebuild();
+  }
+
 
   setIntensity(v) {
     this.intensity = v;
@@ -78,6 +90,7 @@ export class WeatherSystem {
     });
 
     const points = new THREE.Points(geom, mat);
+    points.raycast = () => null;
     this._snow = points;
     this.group.add(points);
   }
@@ -124,15 +137,19 @@ export class WeatherSystem {
     });
 
     const lines = new THREE.LineSegments(geom, mat);
+    lines.raycast = () => null;
     this._rain = lines;
     this.group.add(lines);
   }
 
   update(dt, cameraTarget) {
     if (cameraTarget) {
-      this.group.position.x = cameraTarget.x;
-      this.group.position.z = cameraTarget.z;
-      this.group.position.y = 0;
+      const desired = new THREE.Vector3(cameraTarget.x, 0, cameraTarget.z);
+
+      const t = 1.0 - Math.exp(-this._followSpeed * dt);
+
+      this._followPos.lerp(desired, t);
+      this.group.position.set(this._followPos.x, 0, this._followPos.z);
     }
 
     if (this.mode === "snow" && this._snow) this._updateSnow(dt);
@@ -144,23 +161,28 @@ export class WeatherSystem {
     const pos = geom.getAttribute("position");
     const vel = geom.getAttribute("_vel");
 
+    const half = this._half;
+
     for (let i = 0; i < pos.count; i++) {
       const ix = i * 3;
 
-      //add a little wind
       pos.array[ix + 0] += (vel.array[ix + 0] + this._wind.x * 0.15) * dt;
       pos.array[ix + 1] += vel.array[ix + 1] * dt;
       pos.array[ix + 2] += (vel.array[ix + 2] + this._wind.z * 0.15) * dt;
 
-      if (pos.array[ix + 1] < -20) {
-        pos.array[ix + 1] = this.height;
-        pos.array[ix + 0] = (Math.random() - 0.5) * this.areaSize;
-        pos.array[ix + 2] = (Math.random() - 0.5) * this.areaSize;
-      }
+
+      if (pos.array[ix + 1] < -20) pos.array[ix + 1] = this.height;
+
+      if (pos.array[ix + 0] > half) pos.array[ix + 0] -= this.areaSize;
+      else if (pos.array[ix + 0] < -half) pos.array[ix + 0] += this.areaSize;
+
+      if (pos.array[ix + 2] > half) pos.array[ix + 2] -= this.areaSize;
+      else if (pos.array[ix + 2] < -half) pos.array[ix + 2] += this.areaSize;
     }
 
     pos.needsUpdate = true;
   }
+
 
   _updateRain(dt) {
     const geom = this._rain.geometry;
