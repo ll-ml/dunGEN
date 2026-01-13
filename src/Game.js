@@ -189,7 +189,8 @@ export class Game {
         this._applyEnvironmentFromMap(map);
 
         if (this.weather) {
-            this.weather.setMode(map?.isDungeon ? "none" : "rain");
+            //this.weather.setMode(map?.isDungeon ? "none" : "snow");
+            this.weather.setMode("none");
             this.weather.setIntensity(map?.isDungeon ? 0.0 : 1.0);
         }
     }
