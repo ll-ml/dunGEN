@@ -549,6 +549,50 @@ getActionsAt({ gridX, gridY, entity }) {
   return actions;
 }
 
+    updateTick(game, tickSeconds) {
+        console.log("UPDATE CALLED")
+        const player = game.player;
+        if (!player) return;
+
+        game.ui?.setHealth?.(player.combat.hp);
+        player.skills?.updateUI?.();
+
+        const combatMgr = game.combatMgr;
+        if (!combatMgr) {
+            console.warn("ERROR: could net find the state of the combat manager");
+            return;
+        }
+
+        for (const e of this.entities) {
+            if (!(e instanceof Enemy)) continue;
+
+            e.think(player.coords, this.denseMatrix);
+
+            const dist = 
+                Math.abs(e.coords.x - player.coords.x) + Math.abs(e.coords.y - player.coords.y);
+
+            if (dist === 1 && !e.inCombat) {
+                e.inCombat = true;
+                combatMgr.engage(e.combat, player.combat);
+            } else {
+                e.inCombat = false;
+                combatMgr.disengage(e.combat);
+            }
+        }
+
+        combatMgr.update(tickSeconds);
+
+        for (let i = this.entities.length - 1; i >= 0; i--) {
+            const obj = this.entities[i];
+            if (obj instanceof Enemy && obj.readyToRemove) {
+                game.currentMap?.remove(obj.model);
+
+                this.entities.splice(i, 1);
+            }
+        }
+
+    }
+
 
 
 

@@ -21,6 +21,8 @@ export class Enemy extends DungeonObject {
         height
       }
     );
+
+    this.kind = "Enemy";
     this.id = id;
     this.hp = hp; 
     this.attackPower = atk;
