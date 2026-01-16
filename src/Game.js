@@ -10,6 +10,7 @@ import { Dungeon } from "./dungeon.js";
 import { buildDungeon } from "./render.js";
 import { Player } from "./player.js";
 import { WeatherSystem } from "./weather.js";
+import { CombatManager } from "./combat.js";
 
 export class Game {
     constructor( { tileSize = 11, worldW = 150, wolrdH = 100 } = {}) {
@@ -44,6 +45,11 @@ export class Game {
         this.weather = null;
         this._weatherEnabled = true;
         this.tickManager = new TickManager(600);
+
+        this.combatMgr = new CombatManager();
+        this.combatMgr.onDeath = ({ winner, loser }) => {
+            console.log(`ENEMY ${loser} was slain by ${winner}`);
+        }
     }
 
 
@@ -79,6 +85,10 @@ export class Game {
             onActionSelected: async (action) => {
                 await action.run(this);
             },
+        });
+
+        this.tickManager.onTick((tickSeconds) => {
+            this.currentMap?.updateTick?.(this, tickSeconds);
         });
 
 
@@ -246,7 +256,7 @@ export class Game {
         // controls and render 
         this.camControls?.update();
         this.renderer.render(this.scene, this.camera);
-        this.tickManager.update();
+        this.tickManager.update(dt * 1000);
 
         //player anims
         if (this.player?.mixer) {

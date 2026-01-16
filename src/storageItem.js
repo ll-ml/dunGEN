@@ -12,6 +12,7 @@ export class StorageItem extends DungeonObject {
     const {glbPath = './public/barrel.glb', scale = TILE_SIZE, height = 0} = opts;
     super(glbPath, x, y, {scale, height});
     this.id = id;
+    this.kind = "Storage";
 
     this.contents = contents.slice(0, 3);
   }
