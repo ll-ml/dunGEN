@@ -50,6 +50,8 @@ export class Game {
         this.combatMgr.onDeath = ({ winner, loser }) => {
             console.log(`ENEMY ${loser} was slain by ${winner}`);
         }
+
+        this._desired_player_path ??= new THREE.Vector3();
     }
 
 
@@ -255,7 +257,7 @@ export class Game {
 
         // controls and render 
         this.camControls?.update();
-        this.renderer.render(this.scene, this.camera);
+        //this.renderer.render(this.scene, this.camera);
         this.tickManager.update(dt * 1000);
 
         //player anims
@@ -270,9 +272,10 @@ export class Game {
          if (this.player?.model) {
             const p = this.player.model.position;
 
-            const desired = new THREE.Vector3(p.x, 0, p.z);
+            //const desired = new THREE.Vector3(p.x, 0, p.z);
+            this._desired_player_path.set(p.x, 0, p.z);
 
-            this._camTarget.lerp(desired, 1 - Math.pow(1 - this._camFollowLerp, dt * 60));
+            this._camTarget.lerp(this._desired_player_path, 1 - Math.pow(1 - this._camFollowLerp, dt * 60));
 
             this.camControls.setTarget?.(this._camTarget);
         }
@@ -291,6 +294,8 @@ export class Game {
         
 
         this._frameCounter.update();
+        //requestAnimationFrame(this._loop);
+        this.renderer.render(this.scene, this.camera);
         requestAnimationFrame(this._loop);
     }
 
