@@ -550,11 +550,12 @@ getActionsAt({ gridX, gridY, entity }) {
 }
 
     updateTick(game, tickSeconds) {
-        console.log("UPDATE CALLED")
         const player = game.player;
         if (!player) return;
 
-        game.ui?.setHealth?.(player.combat.hp);
+        //game.ui?.setHealth?.(player.combat.hp);
+       // game.ui.healthStatus.textContent = '90' TODO: wrap this in a good function somewhere in the codebase
+        console.log(player.combat);
         player.skills?.updateUI?.();
 
         const combatMgr = game.combatMgr;
@@ -570,6 +571,14 @@ getActionsAt({ gridX, gridY, entity }) {
 
             const dist = 
                 Math.abs(e.coords.x - player.coords.x) + Math.abs(e.coords.y - player.coords.y);
+
+            //console.log(Math.floor(e.coords.manhattanDistanceTo(player.coords)));
+
+            /*
+                this needs to be written at some point to actually work 
+            */
+
+           // console.log(dist);
 
             if (dist === 1 && !e.inCombat) {
                 e.inCombat = true;
