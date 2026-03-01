@@ -62,6 +62,7 @@ export class Game {
         this.ui = {
             ctxMenu: new ContextMenuUI(document.getElementById("ctxMenu")),
             addStatus: (msg) => console.log(msg),
+            healthStatus: document.getElementById("hp"),
             openStorageModal: (storage) => console.log("open storage", storage),
             renderInventory: (inv) => console.log("render inventory", inv),
         }
