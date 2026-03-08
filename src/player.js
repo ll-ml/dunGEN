@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { DungeonObject } from './dungeonObject.js';
+import { DungeonEntity } from "./dungeonEntity.js";
 import { TileType } from './types.js';
 import { Combatant } from './combat.js';
 import { SkillManager } from "./skills.js";
@@ -11,7 +11,7 @@ const HEIGHT = 30;
 const dungeonPixelWidth = WIDTH * TILE_SIZE;
 const dungeonPixelHeight = HEIGHT * TILE_SIZE;
 
-export class Player extends DungeonObject {
+export class Player extends DungeonEntity {
    /**
    * @param {number} startX  grid‑column
    * @param {number} startZ  grid‑row
@@ -362,6 +362,7 @@ export class Player extends DungeonObject {
   }
 
   updateMovement(deltaSeconds, map) {
+    if (this.isDead) return;
     if (this.path.length === 0 || !this._targetWorldPos) return;
 
     const dir = this._targetWorldPos.clone().sub(this.model.position);
@@ -426,6 +427,7 @@ export class Player extends DungeonObject {
   }
 
   die() {
+    this.isDead = true;
     this._playAction('die');
   }
 

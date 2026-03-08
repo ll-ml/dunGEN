@@ -1,7 +1,7 @@
-import { DungeonObject } from './dungeonObject'
+import { DungeonEntity } from "./dungeonEntity.js";
 import { TILE_SIZE } from './types'
 
-export class StorageItem extends DungeonObject {
+export class StorageItem extends DungeonEntity {
    /**
    * @param {string}    id
    * @param {number}    x, y   tile coords
@@ -18,7 +18,7 @@ export class StorageItem extends DungeonObject {
   }
 }
 
-export class DroppedItem extends DungeonObject {
+export class DroppedItem extends DungeonEntity {
   /**
    * @param {string}    id
    * @param {number}    x, y   tile coords
@@ -34,5 +34,6 @@ export class DroppedItem extends DungeonObject {
     );
     this.id = id;
     this.item = item;
+    this.kind = "DroppedItem";
   }
 }

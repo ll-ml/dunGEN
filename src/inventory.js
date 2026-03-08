@@ -1,4 +1,4 @@
-import { DroppedItem } from "./storageItem";
+import { DroppedItem } from "./storageItem.js";
 
 export class InventoryItem {
   /**
@@ -84,55 +84,70 @@ export function showCtxMenu(items, x, y) {
     menu.style.display = 'block';
 }
 
-export function setupInventoryContext(player, dungeon, scene) {
-    renderInventory(player.inventory);
-    
-    // attach handlers to each slot
-    const slots = document.querySelectorAll('#inventoryItems .slot');
-    slots.forEach((slot, idx) => {
-      slot.addEventListener('contextmenu', e => {
-        e.preventDefault();
-        const item = player.inventory[idx];
-        if (!item) return;
-  
-        const actions = [
-          {
-            label: `Use ${item.name}`,
-            onClick: () => {
-              item.onUse(player, dungeon);
-              if (item.type === "food") {
-                player.removeItem(idx, 1);
+export function setupInventoryContext({ player, getMap, getScene, ui }) {
+  renderInventory(player.inventory);
 
-              }
-              renderInventory(player.inventory);
+  const slots = document.querySelectorAll("#inventoryItems .slot");
+  slots.forEach((slot, idx) => {
+    slot.oncontextmenu = (e) => {
+      e.preventDefault();
+      const map = getMap?.();
+      const scene = getScene?.();
+      const item = player.inventory[idx];
+      if (!item) return;
+
+      const actions = [
+        {
+          label: `Use ${item.name}`,
+          onClick: () => {
+            item.onUse(player, map);
+            if (item.type === "food") {
+              player.removeItem(idx, 1);
+            }
+            renderInventory(player.inventory);
+            ui?.setHealth?.(player.combat.hp);
+          },
+        },
+        {
+          label: `Inspect ${item.name}`,
+          onClick: () => {
+            if (map?.addStatus) {
+              map.addStatus(item.description);
+            } else {
+              map?.status?.addStatus?.(item.description);
             }
           },
-          {
-            label: `Inspect ${item.name}`,
-            onClick: () => {
-              dungeon.addStatus(item.description);
-            }
+        },
+        {
+          label: `Drop ${item.name}`,
+          onClick: () => {
+            if (!map || !scene) return;
+            const glbPath =
+              item.imagePath.substring(0, item.imagePath.lastIndexOf(".")) +
+              ".glb";
+            const itemModel = new DroppedItem(
+              item.id,
+              player.coords.x,
+              player.coords.y,
+              glbPath,
+              item
+            );
+            map.entities?.push(itemModel);
+            itemModel
+              .addTo(scene, map)
+              .then(() => {
+                itemModel.inScene = true;
+              })
+              .catch((err) => {
+                console.error("Failed to add dropped item into scene", err);
+              });
+            player.removeItem(idx, 1);
+            renderInventory(player.inventory);
           },
-          {
-            label: `Drop ${item.name}`,
-            onClick: () => {
-              const glbPath = item.imagePath.substring(0, item.imagePath.lastIndexOf('.')) + '.glb';
-              const itemModel = new DroppedItem(item.id, player.coords.x, player.coords.y, glbPath, item);
-              dungeon.sparseMatrix.push(itemModel);
-              itemModel.addTo(scene)
-                .then(model => {
-                  itemModel.inScene = true;
-                })
-                .catch(err => {
-                  console.error("Failed to add dropped item into scene", err)
-                });
-              player.removeItem(idx, 1)
-              renderInventory(player.inventory);
-            }
-          }
-        ];
-  
-        showCtxMenu(actions, e.pageX, e.pageY);
-      });
-    });
+        },
+      ];
+
+      showCtxMenu(actions, e.pageX, e.pageY);
+    };
+  });
 }

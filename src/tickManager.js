@@ -12,7 +12,8 @@ export class TickManager {
   update(delta) {
     this.accumulator += delta;
     while (this.accumulator >= this.tickInterval) {
-      this.tickCallbacks.forEach(cb => cb(this.tickInterval));
+      const tickSeconds = this.tickInterval / 1000;
+      this.tickCallbacks.forEach(cb => cb(tickSeconds));
       this.accumulator -= this.tickInterval;
     }
   }

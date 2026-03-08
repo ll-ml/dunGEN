@@ -10,6 +10,9 @@ import { Dungeon } from "./dungeon.js";
 import { buildDungeon } from "./render.js";
 import { Player } from "./player.js";
 import { WeatherSystem } from "./weather.js";
+import { renderInventory, setupInventoryContext } from "./inventory.js";
+import { initDamageDisplay } from "./damageDisplay.js";
+import { TileId } from "./overworld/wfc.js";
 import { CombatManager } from "./combat.js";
 
 export class Game {
@@ -41,6 +44,7 @@ export class Game {
 
         this.ui = null;
         this._overworldRenderHandle = null;
+        this._overworldModelMap = null;
 
         this.weather = null;
         this._weatherEnabled = true;
@@ -48,10 +52,33 @@ export class Game {
 
         this.combatMgr = new CombatManager();
         this.combatMgr.onDeath = ({ winner, loser }) => {
+            if (loser?.owner === this.player) {
+                this._handlePlayerDeath();
+                return;
+            }
             console.log(`ENEMY ${loser} was slain by ${winner}`);
         }
 
         this._desired_player_path ??= new THREE.Vector3();
+
+        this._storageModal = null;
+        this._storageSlots = null;
+        this._storageClose = null;
+        this._activeStorage = null;
+        this._inventoryBound = false;
+        this._deathModal = null;
+        this._newCharBtn = null;
+        this._npcModal = null;
+        this._npcText = null;
+        this._npcOptions = null;
+        this._npcClose = null;
+        this._activeNpc = null;
+
+        this._changelogModal = null;
+        this._openChangelog = null;
+        this._changelogClose = null;
+
+        this._overworldEditorBound = false;
     }
 
 
@@ -61,11 +88,17 @@ export class Game {
         this._initResizeHandler();
         this.ui = {
             ctxMenu: new ContextMenuUI(document.getElementById("ctxMenu")),
-            addStatus: (msg) => console.log(msg),
-            healthStatus: document.getElementById("hp"),
-            openStorageModal: (storage) => console.log("open storage", storage),
-            renderInventory: (inv) => console.log("render inventory", inv),
+            addStatus: (msg) => this._addStatus(msg),
+            openStorageModal: (storage) => this._openStorageModal(storage),
+            renderInventory: (inv) => renderInventory(inv),
+            setHealth: (hp) => this._setHealth(hp),
+            openNpcDialog: (npc) => this._openNpcDialog(npc),
         }
+
+        this._bindStorageModal();
+        this._bindDeathModal();
+        this._bindNpcModal();
+        this._bindChangelogModal();
 
         this.weather = new WeatherSystem({
             areaSize: 800,
@@ -92,6 +125,7 @@ export class Game {
 
         this.tickManager.onTick((tickSeconds) => {
             this.currentMap?.updateTick?.(this, tickSeconds);
+            this.combatMgr.update();
         });
 
 
@@ -141,7 +175,9 @@ export class Game {
           this.camControls.maxPolarAngle = Math.PI * 0.49;
 
 
-          this.scene.fog = new THREE.Fog(0xa8c6ff, worldRadius * 1.2, worldRadius * 4);
+        this.scene.fog = new THREE.Fog(0xa8c6ff, worldRadius * 1.2, worldRadius * 4);
+
+        initDamageDisplay(this.renderer, this.camera);
     }
 
     _initLights() {
@@ -167,6 +203,7 @@ export class Game {
         const overwolrd = new Overworld(this.WORLD_W, this.WORLD_H)
 
         const modelMap = await overwolrd.loadModelMap();
+        this._overworldModelMap = modelMap;
 
         const group = new THREE.Group();
         const renderHandle = buildOverworld(group, modelMap, overwolrd.denseMatrix, this.TILE_SIZE);
@@ -183,7 +220,13 @@ export class Game {
             this.player.updatePosition(this.currentMap);
         }
 
+        this._wireInventoryUI();
+        this.ui.renderInventory(this.player.inventory);
+        this._setHealth(this.player.combat.hp);
+        this._bindOverworldEditor();
+
         this.currentMap.spawnDungeonEntrances?.({ count: 6, minSpacing: 10 });
+        this.currentMap.spawnNPCs?.({ count: 1 });
 
         for (const ent of this.currentMap.entities) {
             await ent.addTo(this.currentMapGroup, this.currentMap);
@@ -245,6 +288,11 @@ export class Game {
         await this.player.addTo(this.currentMapGroup, this.currentMap);
         this.player.updatePosition(this.currentMap);
 
+        this._wireInventoryUI();
+        this.ui.renderInventory(this.player.inventory);
+        this._setHealth(this.player.combat.hp);
+        this._bindOverworldEditor();
+
         //DEBUG: this is used for easy of use of stats need to remove when set
         console.log(this.currentMap);
     }
@@ -267,6 +315,15 @@ export class Game {
         }
 
         this.player?.updateMovement?.(dt, this.currentMap);
+
+        const entities = this.currentMap?.entities ?? [];
+        for (const ent of entities) {
+            if (ent === this.player) continue;
+            if (ent?.mixer) ent.mixer.update(dt);
+            if (typeof ent.updateMovement === "function") {
+                ent.updateMovement(dt, this.currentMap);
+            }
+        }
 
 
         //camera movement
@@ -302,6 +359,318 @@ export class Game {
 
     stop() {
         this._running = false;
+    }
+
+    _setHealth(hp) {
+        const hpEl = document.getElementById("hp");
+        const maxHpEl = document.getElementById("maxHp");
+        if (hpEl) hpEl.textContent = Math.max(0, Math.floor(hp)).toString();
+        if (maxHpEl && this.player?.maxHealth != null) {
+            maxHpEl.textContent = this.player.maxHealth.toString();
+        }
+    }
+
+    _addStatus(message) {
+        const map = this.currentMap;
+        if (map?.addStatus) {
+            map.addStatus(message);
+            return;
+        }
+        map?.status?.addStatus?.(message);
+    }
+
+    _bindStorageModal() {
+        this._storageModal = document.getElementById("storageModal");
+        this._storageSlots = document.querySelectorAll("#storageSlots .slot");
+        this._storageClose = document.getElementById("storageClose");
+
+        if (this._storageClose) {
+            this._storageClose.onclick = () => this._closeStorageModal();
+        }
+    }
+
+    _bindDeathModal() {
+        this._deathModal = document.getElementById("deathModal");
+        this._newCharBtn = document.getElementById("newCharBtn");
+
+        if (this._newCharBtn) {
+            this._newCharBtn.onclick = () => window.location.reload();
+        }
+    }
+
+    _bindNpcModal() {
+        this._npcModal = document.getElementById("npcModal");
+        this._npcText = document.getElementById("npcDialogText");
+        this._npcOptions = document.getElementById("npcDialogOptions");
+        this._npcClose = document.getElementById("npcDialogClose");
+
+        if (this._npcClose) {
+            this._npcClose.onclick = () => this._closeNpcDialog();
+        }
+    }
+
+    _openNpcDialog(npc) {
+        if (!this._npcModal || !this._npcOptions || !this._npcText) return;
+        this._activeNpc = npc;
+        this._npcText.textContent = "Hello traveler.";
+        this._npcOptions.innerHTML = "";
+
+        const options = this._pickNpcOptions(4);
+        for (const { label, remark } of options) {
+            const btn = document.createElement("button");
+            btn.textContent = label;
+            btn.onclick = () => {
+                this._addStatus(remark);
+                this._closeNpcDialog();
+            };
+            this._npcOptions.appendChild(btn);
+        }
+
+        this._npcModal.classList.remove("hidden");
+    }
+
+    _closeNpcDialog() {
+        if (!this._npcModal) return;
+        this._npcModal.classList.add("hidden");
+        this._activeNpc?.resume?.();
+        this._activeNpc = null;
+    }
+
+    _pickNpcOptions(count) {
+        const pool = [
+            { label: "Ask about the town", remark: "The wanderer shrugs." },
+            { label: "Trade", remark: "They gesture toward a distant market." },
+            { label: "Request directions", remark: "You are told to follow the river." },
+            { label: "Tell a joke", remark: "A small smile breaks the silence." },
+            { label: "Ask about rumors", remark: "They whisper of a hidden grove." },
+            { label: "Say farewell", remark: "The wanderer nods respectfully." },
+            { label: "Ask for work", remark: "They mention a notice board nearby." },
+            { label: "Compliment their armor", remark: "They tap the helm with pride." },
+        ];
+
+        for (let i = pool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+
+        return pool.slice(0, count);
+    }
+
+    _bindChangelogModal() {
+        this._changelogModal = document.getElementById("changelogModal");
+        this._openChangelog = document.getElementById("openChangelog");
+        this._changelogClose = document.getElementById("changelogClose");
+
+        if (this._openChangelog) {
+            this._openChangelog.onclick = () => {
+                this._changelogModal?.classList.remove("hidden");
+            };
+        }
+
+        if (this._changelogClose) {
+            this._changelogClose.onclick = () => {
+                this._changelogModal?.classList.add("hidden");
+            };
+        }
+    }
+
+    _handlePlayerDeath() {
+        if (this.player) {
+            this.player.isDead = true;
+        }
+        this.combatMgr.sessions = [];
+        if (this._deathModal) {
+            this._deathModal.classList.remove("hidden");
+        }
+    }
+
+    _openStorageModal(storage) {
+        if (!this._storageModal || !this._storageSlots) return;
+        this._activeStorage = storage;
+        this._renderStorageSlots(storage);
+        this._storageModal.classList.remove("hidden");
+    }
+
+    _closeStorageModal() {
+        if (!this._storageModal) return;
+        this._storageModal.classList.add("hidden");
+        this._activeStorage = null;
+    }
+
+    _renderStorageSlots(storage) {
+        if (!this._storageSlots) return;
+        this._storageSlots.forEach((slot, idx) => {
+            slot.innerHTML = "";
+            const item = storage.contents[idx];
+            if (!item) return;
+
+            const img = document.createElement("img");
+            img.src = item.imagePath;
+            img.alt = item.name;
+            img.title = item.description;
+            img.onclick = () => this._takeStorageItem(idx);
+
+            slot.appendChild(img);
+
+            if (item.quantity && item.quantity > 1) {
+                const quantityDisplay = document.createElement("div");
+                quantityDisplay.className = "item-quantity";
+                quantityDisplay.textContent = item.quantity;
+                slot.append(quantityDisplay);
+            }
+        });
+    }
+
+    _takeStorageItem(slotIndex) {
+        const storage = this._activeStorage;
+        if (!storage) return;
+        const item = storage.contents[slotIndex];
+        if (!item) return;
+
+        const amount = item.quantity ?? 1;
+        const taken = this.player.addItem(item, amount);
+        if (taken <= 0) return;
+
+        if (item.quantity && item.quantity > taken) {
+            item.quantity -= taken;
+        } else {
+            storage.contents.splice(slotIndex, 1);
+        }
+
+        this.ui.renderInventory(this.player.inventory);
+
+        if (storage.contents.length === 0) {
+            this.currentMap?.removeEntity?.(storage);
+            this.currentMapGroup?.remove(storage.model);
+            this._closeStorageModal();
+            return;
+        }
+
+        this._renderStorageSlots(storage);
+    }
+
+    _wireInventoryUI() {
+        if (this._inventoryBound || !this.player) return;
+        setupInventoryContext({
+            player: this.player,
+            getMap: () => this.currentMap,
+            getScene: () => this.currentMapGroup,
+            ui: this.ui,
+        });
+        this._inventoryBound = true;
+    }
+
+    _bindOverworldEditor() {
+        if (this._overworldEditorBound) return;
+        const button = document.getElementById("regenOverworld");
+        if (!button) return;
+
+        this._setOverworldEditorDefaults();
+
+        button.onclick = () => {
+            const weights = this._collectOverworldWeights();
+            if (!weights) return;
+            this._regenerateOverworld(weights);
+        };
+
+        this._overworldEditorBound = true;
+    }
+
+    _setOverworldEditorDefaults() {
+        const defaults = this._getOverworldWeights();
+
+        const setValue = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.value = value.toString();
+        };
+
+        setValue("weightWater", defaults[TileId.WATER]);
+        setValue("weightSand", defaults[TileId.SAND]);
+        setValue("weightGrass", defaults[TileId.GRASS]);
+        setValue("weightDense", defaults[TileId.DENSE_GRASS]);
+        setValue("weightForest", defaults[TileId.FOREST]);
+    }
+
+    _getOverworldWeights() {
+        const map = this.currentMap;
+        const fallback = {
+            [TileId.WATER]: 20,
+            [TileId.SAND]: 20,
+            [TileId.GRASS]: 45,
+            [TileId.DENSE_GRASS]: 25,
+            [TileId.FOREST]: 25,
+        };
+
+        if (!map || map.isDungeon) return fallback;
+        return {
+            [TileId.WATER]: map.weights?.[TileId.WATER] ?? fallback[TileId.WATER],
+            [TileId.SAND]: map.weights?.[TileId.SAND] ?? fallback[TileId.SAND],
+            [TileId.GRASS]: map.weights?.[TileId.GRASS] ?? fallback[TileId.GRASS],
+            [TileId.DENSE_GRASS]: map.weights?.[TileId.DENSE_GRASS] ?? fallback[TileId.DENSE_GRASS],
+            [TileId.FOREST]: map.weights?.[TileId.FOREST] ?? fallback[TileId.FOREST],
+        };
+    }
+
+    _collectOverworldWeights() {
+        const readValue = (id) => {
+            const el = document.getElementById(id);
+            if (!el) return null;
+            const value = Number.parseFloat(el.value);
+            if (!Number.isFinite(value)) return null;
+            return Math.max(0, value);
+        };
+
+        const weights = {
+            [TileId.WATER]: readValue("weightWater"),
+            [TileId.SAND]: readValue("weightSand"),
+            [TileId.GRASS]: readValue("weightGrass"),
+            [TileId.DENSE_GRASS]: readValue("weightDense"),
+            [TileId.FOREST]: readValue("weightForest"),
+        };
+
+        if (Object.values(weights).some((value) => value == null)) {
+            this._addStatus("Invalid overworld weights.");
+            return null;
+        }
+
+        return weights;
+    }
+
+    async _regenerateOverworld(weights) {
+        if (!this.currentMap || this.currentMap.isDungeon) {
+            this._addStatus("Switch to the overworld to regenerate it.");
+            return;
+        }
+
+        try {
+            this.currentMap.regenerate({ weights });
+        } catch (err) {
+            console.error("Failed to regenerate overworld", err);
+            this._addStatus("Overworld regeneration failed.");
+            return;
+        }
+
+        if (!this._overworldModelMap) {
+            this._overworldModelMap = await this.currentMap.loadModelMap();
+        }
+
+        this._overworldRenderHandle = buildOverworld(
+            this.currentMapGroup,
+            this._overworldModelMap,
+            this.currentMap.denseMatrix,
+            this.TILE_SIZE
+        );
+
+        this.currentMap.entities = [];
+        this.currentMap.spawnDungeonEntrances?.({ count: 6, minSpacing: 10 });
+        this.currentMap.spawnNPCs?.({ count: 1 });
+        for (const ent of this.currentMap.entities) {
+            await ent.addTo(this.currentMapGroup, this.currentMap);
+        }
+
+        await this.player.addTo(this.currentMapGroup, this.currentMap);
+        this.player.updatePosition(this.currentMap);
+        this._addStatus("Overworld regenerated.");
     }
 
 }

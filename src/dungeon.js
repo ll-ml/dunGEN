@@ -4,7 +4,7 @@ import {TileType, Room, Pool, TILE_SIZE } from './types.js'
 import { Player } from './player.js'
 import { Enemy } from './enemy.js';
 import { StorageItem } from './storageItem.js'
-import { generateLoot } from "./loot.js";
+import { generateLoot, spawnDroppedItem } from "./loot.js";
 
 
 export class Dungeon {
@@ -441,12 +441,18 @@ export class Dungeon {
 
         for (const obj of this.entities) {
             if (!obj.model) continue;
+            obj._recomputeBox();
             if (raycaster.ray.intersectBox(obj.hitbox, tmp)) {
             const d = raycaster.ray.origin.distanceTo(tmp);
             if (d < bestDist) { bestDist = d; best = obj; }
         }
         }
         return best;
+    }
+
+    removeEntity(entity) {
+        const idx = this.entities.indexOf(entity);
+        if (idx >= 0) this.entities.splice(idx, 1);
     }
 
     isWalkableAt(x, y) {
@@ -515,6 +521,21 @@ getActionsAt({ gridX, gridY, entity }) {
     });
   }
 
+  if (entity?.kind === "DroppedItem") {
+    actions.push({
+      label: `Pick up ${entity.item?.name ?? entity.id}`,
+      run: async (game) => {
+        await game.player.moveToAsync(entity.coords, this);
+        if (entity.item) {
+          game.player.addItem(entity.item, entity.item.quantity ?? 1);
+          game.ui.renderInventory(game.player.inventory);
+        }
+        this.removeEntity(entity);
+        game.currentMapGroup?.remove(entity.model);
+      },
+    });
+  }
+
   if (entity?.kind === "Enemy") {
     actions.push({
       label: `Attack ${entity.name ?? "enemy"}`,
@@ -550,12 +571,22 @@ getActionsAt({ gridX, gridY, entity }) {
 }
 
     updateTick(game, tickSeconds) {
+        console.log("UPDATE CALLED")
         const player = game.player;
         if (!player) return;
 
-        //game.ui?.setHealth?.(player.combat.hp);
-       // game.ui.healthStatus.textContent = '90' TODO: wrap this in a good function somewhere in the codebase
-        console.log(player.combat);
+        const lootDropChance = 0.5;
+
+        if (player.combat?.hp <= 0) {
+            for (const e of this.entities) {
+                if (!(e instanceof Enemy)) continue;
+                e.inCombat = false;
+                game.combatMgr?.disengage(e.combat);
+            }
+            return;
+        }
+
+        game.ui?.setHealth?.(player.combat.hp);
         player.skills?.updateUI?.();
 
         const combatMgr = game.combatMgr;
@@ -567,34 +598,35 @@ getActionsAt({ gridX, gridY, entity }) {
         for (const e of this.entities) {
             if (!(e instanceof Enemy)) continue;
 
-            e.think(player.coords, this.denseMatrix);
+            e.think(player.coords, this.denseMatrix, this);
 
             const dist = 
                 Math.abs(e.coords.x - player.coords.x) + Math.abs(e.coords.y - player.coords.y);
 
-            //console.log(Math.floor(e.coords.manhattanDistanceTo(player.coords)));
-
-            /*
-                this needs to be written at some point to actually work 
-            */
-
-           // console.log(dist);
-
-            if (dist === 1 && !e.inCombat) {
+            if (dist === 1) {
+                if (!e.inCombat) {
+                    combatMgr.engage(e.combat, player.combat);
+                }
                 e.inCombat = true;
-                combatMgr.engage(e.combat, player.combat);
             } else {
                 e.inCombat = false;
                 combatMgr.disengage(e.combat);
             }
         }
 
-        combatMgr.update(tickSeconds);
-
         for (let i = this.entities.length - 1; i >= 0; i--) {
             const obj = this.entities[i];
             if (obj instanceof Enemy && obj.readyToRemove) {
-                game.currentMap?.remove(obj.model);
+                if (Math.random() < lootDropChance) {
+                    spawnDroppedItem(
+                        obj.coords.x,
+                        obj.coords.y,
+                        this.entities,
+                        game.currentMapGroup,
+                        this
+                    );
+                }
+                game.currentMapGroup?.remove(obj.model);
 
                 this.entities.splice(i, 1);
             }

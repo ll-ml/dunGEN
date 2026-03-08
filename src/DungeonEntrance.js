@@ -1,6 +1,6 @@
-import { DungeonObject } from "./dungeonObject";
+import { DungeonEntity } from "./dungeonEntity.js";
 
-export class DungeonEntrance extends DungeonObject {
+export class DungeonEntrance extends DungeonEntity {
     constructor(gridX, gridY) {
         super("./public/crypt-small.glb", gridX, gridY, {
             height: 0.0,

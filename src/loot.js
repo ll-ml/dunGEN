@@ -19,24 +19,24 @@ export function generateLoot(count = 1) {
 
 
 
-  /**
-   * Generates a single dropped item and gives it an actual 3D model. Caller must still push to sparse matrix and add it scene.
-   * @param {x} number - X coordinate
-   * @param {y} number - Y coordinate
-   * @param {scene} scene - Three.js scene
-   * @param {dungeon} Dungeon - Reference to the full dungeon so we can push it to sparse matrix within the function
-   * @returns {DroppedItem} 3D GLB model for rendering in dungeon
-   */
-  export function spawnDroppedItem(x, y, sparseMatrix, scene) {
+   /**
+    * Generates a single dropped item and adds it to the world.
+    * @param {number} x - X coordinate
+    * @param {number} y - Y coordinate
+    * @param {Array} entities - Entity list to push into
+    * @param {THREE.Group} scene - Three.js group for the current map
+    * @param {Object} map - Map instance for positioning
+    */
+   export function spawnDroppedItem(x, y, entities, scene, map = null) {
     const droppedItem =  generateLoot(1)[0];
     if (droppedItem.id === "Gold Coin") {console.warn("ERROR: attempted to spawn coin with no glb model"); return;}
     const glbPath = droppedItem.imagePath.substring(0, droppedItem.imagePath.lastIndexOf('.')) + '.glb'; // why not store the full glb path in the item?
 
     const item = new DroppedItem(droppedItem.id, x, y, glbPath, droppedItem);
 
-    sparseMatrix.push(item);
+    entities.push(item);
 
-    item.addTo(scene)
+    item.addTo(scene, map)
       .then(model => {
         item.inScene = true;
       })
