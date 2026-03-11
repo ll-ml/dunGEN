@@ -121,6 +121,10 @@ export class Game {
             onActionSelected: async (action) => {
                 await action.run(this);
             },
+            onLeftClick: async ({ grid, map }) => {
+                if (!map?.isWalkableAt?.(grid.x, grid.y)) return;
+                await this.player.moveToAsync(new THREE.Vector2(grid.x, grid.y), map);
+            },
         });
 
         this.tickManager.onTick((tickSeconds) => {

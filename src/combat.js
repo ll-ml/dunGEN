@@ -61,15 +61,14 @@ export class CombatSession {
     if (attacker.owner?.model && defender.owner?.model) {
       attacker.owner.model.lookAt(defender.owner.model.position);
     }
-    const { hit, damage } = resolveAttack(attacker, defender);
+    const { hit, damage, defenderDied } = resolveAttack(attacker, defender);
 
     if (hit && typeof attacker.onAttack === "function") {
       attacker.onAttack();
     }
-    const died = defender.takeDamage(damage);
 
     this.turn = 1 - this.turn;
-    if (died) {
+    if (defenderDied) {
       this.active = false;
       //return { winner: this.a, loser: this.b, hit, damage };
       return { winner: attacker, loser: defender, hit, damage };

@@ -168,15 +168,13 @@ export class Dungeon {
     addStatus(message) {
         this.statusMessages.push(message);
 
-        if (this.statusMessages.length > 3) {
+        if (this.statusMessages.length > 10) {
             this.statusMessages.shift();
         }
 
         this.updateStatusArea();
 
-        setTimeout(() => {
-            this.removeStatus(message);
-        }, 5000); // remove message after 5 seconds elapsed
+        return;
     }
 
     updateStatusArea() {
@@ -540,8 +538,7 @@ getActionsAt({ gridX, gridY, entity }) {
     actions.push({
       label: `Attack ${entity.name ?? "enemy"}`,
       run: async (game) => {
-        // later: game.combatManager.engage(...)
-        await game.player.moveToAsync(entity.coords.clone().add(new THREE.Vector2(-1, 0)), this);
+        await game.player.approachAndFight(entity, this, game.combatMgr);
       },
     });
   }
