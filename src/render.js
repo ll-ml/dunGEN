@@ -26,7 +26,7 @@ export function buildDungeon(group, modelMap, dungeonTiles, TILE_SIZE) {
             } else {
                 if (tile === TileType.DOOR) {
                     // Swapped out door model logic for now
-                    // See commit: https://github.com/ll-ml/UnboundDepths/commit/defcdfbc231ccf250a93309e5a539d25883fc84d
+                    // See commit: https://github.com/ll-ml/dunGEN.io/commit/defcdfbc231ccf250a93309e5a539d25883fc84d
                     const doorwayModel = modelMap[TileType.FLOOR];
                     const doorWayInst = doorwayModel.clone();
 

@@ -1,16 +1,12 @@
 import * as THREE from 'three';
 import { TileType } from './types.js';
-import { DungeonObject } from './dungeonObject.js';
+import { DungeonEntity } from "./dungeonEntity.js";
 import { Combatant } from './combat.js';
 import { PriorityQueue } from './pq.js'
 
 const TILE_SIZE = 11;
-const WIDTH      = 40;
-const HEIGHT     = 30;
-const dungeonPixelWidth  = WIDTH  * TILE_SIZE;
-const dungeonPixelHeight = HEIGHT * TILE_SIZE;
 
-export class Enemy extends DungeonObject {
+export class Enemy extends DungeonEntity {
   constructor(glbPath, id, hp, x, y, atk, agroRange = 10, opts = {}) {
     const { colormap = null, scale = TILE_SIZE, height = 0.0 } = opts;
     const glbModelPath = glbPath;
@@ -114,7 +110,8 @@ _idleStepFrom(from, tiles) {
  * path one step toward them.  Otherwise, if we’ve finished our
  * last “wander” path, build a brand‐new 4–10‐step random route.
  */
-think(playerCoords, tiles) {
+  think(playerCoords, tiles, map = null) {
+    if (map) this._map = map;
   if (!this.model || this._isDying || this.readyToRemove) return; // Probably needs a loading screen at some point
   const manhattan = this.getDistanceTo(playerCoords);
 
@@ -123,7 +120,7 @@ think(playerCoords, tiles) {
     this.moveSpeed = this.chaseSpeed;
     const step = this.tryMove(playerCoords, tiles);
     // Look at the player
-    const playerCoordsWorld = this.tileToWorld(playerCoords);
+    const playerCoordsWorld = this.tileToWorld(playerCoords, map);
     this.model.lookAt(
       playerCoordsWorld.x,
       this.model.position.y,
@@ -132,7 +129,7 @@ think(playerCoords, tiles) {
     );
     if (!step.equals(this.coords)) {
       this.path = [ step ];
-      this._advanceTarget();
+       this._advanceTarget(map);
       this._setAction('walk');
     }
   } else {
@@ -154,7 +151,7 @@ think(playerCoords, tiles) {
 
     if (patrol.length) {
       this.path = patrol;
-      this._advanceTarget();
+       this._advanceTarget(map);
       this._setAction('walk');
     } else {
       // couldn't generate a wander path → stay idle
@@ -163,11 +160,17 @@ think(playerCoords, tiles) {
   }
 }
 
-  tileToWorld(tileCoords) {
+  tileToWorld(tileCoords, map = null) {
+    const targetMap = map ?? this._map;
+    if (targetMap?.gridToWorld) {
+      const world = targetMap.gridToWorld(tileCoords.x, tileCoords.y);
+      return new THREE.Vector3(world.x, world.y + this.height, world.z);
+    }
+
     return new THREE.Vector3(
-      -dungeonPixelWidth / 2 + tileCoords.x * TILE_SIZE + TILE_SIZE / 2,
+      tileCoords.x * TILE_SIZE + TILE_SIZE / 2,
       this.height,
-      -dungeonPixelHeight / 2 + tileCoords.y * TILE_SIZE + TILE_SIZE / 2
+      tileCoords.y * TILE_SIZE + TILE_SIZE / 2
     );
   }
 
@@ -175,14 +178,14 @@ think(playerCoords, tiles) {
     return this.coords.manhattanDistanceTo(targetCoords);
   }
 
-  _advanceTarget() {
+  _advanceTarget(map = null) {
     if (this.path.length === 0) {
       this._targetWorldPos = null;
       return;
     }
 
     const next = this.path[0];
-    this._targetWorldPos = this.tileToWorld(next);
+    this._targetWorldPos = this.tileToWorld(next, map);
     /* old code left in for now
     this._targetWorldPos = new THREE.Vector3(
       -dungeonPixelWidth/2 + next.x * TILE_SIZE + TILE_SIZE/2,
@@ -198,7 +201,8 @@ think(playerCoords, tiles) {
     );
   }
 
-  updateMovement(deltaSeconds) {
+  updateMovement(deltaSeconds, map = null) {
+    if (map) this._map = map;
     if (!this._targetWorldPos) return;
 
     const dir = this._targetWorldPos.clone().sub(this.model.position);
@@ -209,8 +213,8 @@ think(playerCoords, tiles) {
       this.model.position.copy(this._targetWorldPos);
       const reached = this.path.shift();
       this.coords.set(reached.x, reached.y);
-      this.updatePosition();
-      this._advanceTarget();
+      this.updatePosition(map ?? this._map);
+      this._advanceTarget(map ?? this._map);
       if (!this._targetWorldPos) this._setAction('idle');
     } else {
       dir.normalize();

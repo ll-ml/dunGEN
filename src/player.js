@@ -1,17 +1,12 @@
 import * as THREE from 'three';
-import { DungeonObject } from './dungeonObject.js';
+import { DungeonEntity } from "./dungeonEntity.js";
 import { TileType } from './types.js';
 import { Combatant } from './combat.js';
 import { SkillManager } from "./skills.js";
 
 
 const TILE_SIZE =11;
-const WIDTH = 40;
-const HEIGHT = 30;
-const dungeonPixelWidth = WIDTH * TILE_SIZE;
-const dungeonPixelHeight = HEIGHT * TILE_SIZE;
-
-export class Player extends DungeonObject {
+export class Player extends DungeonEntity {
    /**
    * @param {number} startX  grid‑column
    * @param {number} startZ  grid‑row
@@ -305,7 +300,13 @@ export class Player extends DungeonObject {
 
   moveTo(dest, map, onArrive) {
     this.path = this.computePath(dest, map);
-    if (this.path.length === 0) return;
+    if (this.path.length === 0) {
+      this._targetWorldPos = null;
+      this._playAction("idle");
+      this._onArrive = null;
+      if (onArrive) onArrive();
+      return;
+    }
     this._onArrive = onArrive || null;
     this._advanceTarget(map);
     this._playAction("walk");
@@ -362,6 +363,7 @@ export class Player extends DungeonObject {
   }
 
   updateMovement(deltaSeconds, map) {
+    if (this.isDead) return;
     if (this.path.length === 0 || !this._targetWorldPos) return;
 
     const dir = this._targetWorldPos.clone().sub(this.model.position);
@@ -426,6 +428,7 @@ export class Player extends DungeonObject {
   }
 
   die() {
+    this.isDead = true;
     this._playAction('die');
   }
 
@@ -434,24 +437,27 @@ export class Player extends DungeonObject {
     setTimeout(() => this._playAction('idle'), 500);
   }
 
-  async approachAndFight(enemy, tiles, combatMgr) {
-    while (true) {
+  async approachAndFight(enemy, map, combatMgr) {
+    const tiles = map?.denseMatrix ?? map;
+    if (!enemy?.coords || !tiles) return;
 
-    const dist = this.coords.manhattanDistanceTo(enemy.coords);
+    let guard = 0;
+    while (guard++ < 100) {
+      const dist = this.coords.manhattanDistanceTo(enemy.coords);
 
-    if (dist === 1) {
-        this.model.lookAt(
-          -dungeonPixelWidth / 2 + enemy.coords.x * TILE_SIZE + TILE_SIZE / 2,
-          this.model.position.y,
-          -dungeonPixelHeight / 2 + enemy.coords.y * TILE_SIZE + TILE_SIZE / 2
-        );
-        combatMgr.engage(this.combat, enemy.combat);
+      if (dist === 1) {
+        if (map?.gridToWorld && this.model) {
+          const world = map.gridToWorld(enemy.coords.x, enemy.coords.y);
+          this.model.lookAt(world.x, this.model.position.y, world.z);
+        }
+        combatMgr?.engage?.(this.combat, enemy.combat);
         return;
       }
 
       const nextStep = this.tryMove(enemy.coords, tiles);
+      if (!nextStep || nextStep.equals(this.coords)) return;
 
-      await this.moveToAsync(nextStep, tiles);
+      await this.moveToAsync(nextStep, map);
     }
   }
 

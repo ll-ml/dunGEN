@@ -3,6 +3,7 @@ import { generateOverworldWFC, TILE_DEFS, TileId } from "./wfc.js";
 import { DungeonEntrance } from "../DungeonEntrance.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { StatusBar } from "../statusBar.js"
+import { NPC } from "../NPC.js";
  
 export class Overworld {
   constructor(width, height, { seed = null, weights = null, tileSize = 11 } = {}) {
@@ -33,6 +34,18 @@ export class Overworld {
     };
 
     this.isDungeon = false;
+  }
+
+  regenerate({ weights = null } = {}) {
+    this.weights = weights ?? this.weights;
+    this.denseMatrix = generateOverworldWFC(this.width, this.height, {
+      weights: this.weights,
+    });
+    return this.denseMatrix;
+  }
+
+  addStatus(message) {
+    this.status.addStatus(message);
   }
 
   gridToWorld(x, y) {
@@ -82,8 +95,8 @@ export class Overworld {
   return best;
 }
 
-getActionsAt({ gridX, gridY, entity }) {
-  const actions = [];
+  getActionsAt({ gridX, gridY, entity }) {
+    const actions = [];
 
   if (entity?.kind === "DroppedItem") {
     actions.push({
@@ -92,6 +105,7 @@ getActionsAt({ gridX, gridY, entity }) {
         await game.player.moveToAsync(entity.coords, this.denseMatrix);
         game.player.addItem(entity.item, 1);
         this.removeEntity(entity);
+        game.currentMapGroup?.remove(entity.model);
         game.ui.renderInventory(game.player.inventory);
       },
     });
@@ -103,6 +117,17 @@ getActionsAt({ gridX, gridY, entity }) {
       run: async (game) => {
         await game.player.moveToAsync(entity.coords, this.denseMatrix);
         game.ui.openStorageModal(entity);
+      },
+    });
+  }
+
+  if (entity?.kind === "NPC") {
+    actions.push({
+      label: `Talk to ${entity.id}`,
+      run: async (game) => {
+        entity.pause?.();
+        await game.player.moveToAsync(entity.coords, this);
+        game.ui.openNpcDialog?.(entity);
       },
     });
   }
@@ -158,10 +183,35 @@ isWalkableAt(x, y) {
 
 }
 
-removeEntity(entity) {
-  const idx = this.entities.indexOf(entity);
-  if (idx >= 0) this.entities.splice(idx, 1);
-}
+  removeEntity(entity) {
+    const idx = this.entities.indexOf(entity);
+    if (idx >= 0) this.entities.splice(idx, 1);
+  }
+
+  spawnNPCs({ count = 1, rng = Math.random } = {}) {
+    let placed = 0;
+    let guard = 0;
+    while (placed < count && guard++ < count * 200) {
+      const x = Math.floor(rng() * this.width);
+      const y = Math.floor(rng() * this.height);
+      if (!this.isWalkableAt(x, y)) continue;
+      const npc = new NPC(x, y, {
+        id: "Wanderer",
+        colormap: "./public/Textures/colormap3.png",
+      });
+      this.entities.push(npc);
+      placed++;
+    }
+    return placed;
+  }
+
+  updateTick(game) {
+    for (const obj of this.entities) {
+      if (obj?.kind === "NPC") {
+        obj.think(this);
+      }
+    }
+  }
 
 spawnDungeonEntrances({ count = 8, minSpacing = 8, rng = Math.random } = {}) {
   const placed = [];

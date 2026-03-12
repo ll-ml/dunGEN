@@ -7,15 +7,13 @@ export class StatusBar {
     addStatus(message) {
         this.statusMessages.push(message);
 
-        if (this.statusMessages.length > 3) {
+        if (this.statusMessages.length > 10) {
             this.statusMessages.shift();
         }
 
         this.updateStatusArea();
 
-        setTimeout(() => {
-            this.removeStatus(message);
-        }, 5000); // remove message after 5 seconds elapsed
+        return;
     }
 
     updateStatusArea() {

@@ -1,11 +1,12 @@
 import * as THREE from "three";
 
 export class InputController {
-  constructor({ domElement, camera, getActiveMap, onActionSelected, ui }) {
+  constructor({ domElement, camera, getActiveMap, onActionSelected, onLeftClick, ui }) {
     this.domElement = domElement;
     this.camera = camera;
     this.getActiveMap = getActiveMap;
     this.onActionSelected = onActionSelected;
+    this.onLeftClick = onLeftClick;
     this.ui = ui;
 
     if (typeof this.getActiveMap !== "function") {
@@ -22,6 +23,9 @@ export class InputController {
     this.domElement.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       this._onContextMenu(e);
+    });
+    this.domElement.addEventListener("click", (e) => {
+      this._onLeftClick(e);
     });
   }
 
@@ -62,6 +66,30 @@ export class InputController {
       y: e.clientY,
       actions,
       onSelect: (action) => this.onActionSelected(action),
+    });
+  }
+
+  _onLeftClick(e) {
+    if (e.button !== 0) return;
+    const map = this.getActiveMap();
+    if (!map) return;
+
+    if (this.ui?.isUIEvent?.(e)) return;
+
+    this._setMouseNDCFromEvent(e);
+    this.raycaster.setFromCamera(this.mouseNDC, this.camera);
+
+    const worldPt = map.pickWorldPoint(this.raycaster);
+    if (!worldPt) return;
+
+    const grid = map.worldToGrid(worldPt);
+    if (!grid) return;
+
+    this.onLeftClick?.({
+      grid,
+      worldPt,
+      map,
+      event: e,
     });
   }
 }
