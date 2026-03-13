@@ -8,7 +8,7 @@ const TILE_SIZE = 11;
 
 export class Enemy extends DungeonEntity {
   constructor(glbPath, id, hp, x, y, atk, agroRange = 10, opts = {}) {
-    const { colormap = null, scale = TILE_SIZE, height = 0.0 } = opts;
+    const { colormap = null, scale = TILE_SIZE, height = 0.0, faction = "neutral" } = opts;
     const glbModelPath = glbPath;
     super(glbModelPath, x, y,
       {
@@ -23,6 +23,8 @@ export class Enemy extends DungeonEntity {
     this.hp = hp; 
     this.attackPower = atk;
     this.agroRange = agroRange; // This should do more
+    this.faction = faction;
+    this.combatTarget = null;
 
     this.combat = new Combatant(
       this.id,
@@ -38,6 +40,7 @@ export class Enemy extends DungeonEntity {
 
     this.path = [];
     this._targetWorldPos = null;
+    this._lastCoords = this.coords.clone();
     this.idleSpeed = TILE_SIZE * 0.75;
     this.chaseSpeed = TILE_SIZE * 2
     this.moveSpeed = this.idleSpeed; // slower then the player
@@ -81,8 +84,9 @@ export class Enemy extends DungeonEntity {
   /**
  * Pick one random, walkable neighbor of `from`.
  */
-_idleStepFrom(from, tiles) {
+ _idleStepFrom(from, tiles, occupied = null) {
   const rows = tiles.length, cols = tiles[0].length;
+  const currentKey = `${from.x},${from.y}`;
   const dirs = [
     new THREE.Vector2( 1,  0),
     new THREE.Vector2(-1,  0),
@@ -96,9 +100,11 @@ _idleStepFrom(from, tiles) {
   }
   for (const d of dirs) {
     const cand = from.clone().add(d);
+    const candKey = `${cand.x},${cand.y}`;
     if (
       cand.x >= 0 && cand.y >= 0 &&
       cand.x < cols  && cand.y < rows &&
+      (!occupied || !occupied.has(candKey) || candKey === currentKey) &&
       this.canWalk(tiles[cand.y][cand.x])
     ) return cand;
   }
@@ -110,7 +116,7 @@ _idleStepFrom(from, tiles) {
  * path one step toward them.  Otherwise, if we’ve finished our
  * last “wander” path, build a brand‐new 4–10‐step random route.
  */
-  think(playerCoords, tiles, map = null) {
+  think(playerCoords, tiles, map = null, occupied = null) {
     if (map) this._map = map;
   if (!this.model || this._isDying || this.readyToRemove) return; // Probably needs a loading screen at some point
   const manhattan = this.getDistanceTo(playerCoords);
@@ -118,7 +124,7 @@ _idleStepFrom(from, tiles) {
   if (manhattan <= this.agroRange) {
     // chase
     this.moveSpeed = this.chaseSpeed;
-    const step = this.tryMove(playerCoords, tiles);
+    const step = this.tryMove(playerCoords, tiles, occupied);
     // Look at the player
     const playerCoordsWorld = this.tileToWorld(playerCoords, map);
     this.model.lookAt(
@@ -143,7 +149,7 @@ _idleStepFrom(from, tiles) {
     let cursor = this.coords.clone();
 
     for (let i = 0; i < wanderLen; i++) {
-      const next = this._idleStepFrom(cursor, tiles);
+      const next = this._idleStepFrom(cursor, tiles, occupied);
       if (next.equals(cursor)) break;  // no further movement
       patrol.push(next);
       cursor = next;
@@ -212,6 +218,7 @@ _idleStepFrom(from, tiles) {
     if (dist <= step) {
       this.model.position.copy(this._targetWorldPos);
       const reached = this.path.shift();
+      this._lastCoords.copy(this.coords);
       this.coords.set(reached.x, reached.y);
       this.updatePosition(map ?? this._map);
       this._advanceTarget(map ?? this._map);
@@ -246,11 +253,12 @@ _idleStepFrom(from, tiles) {
    * @param {Array<Array<any>>} tiles - The 2D dense matrix of tile types.
    * @returns {THREE.Vector2} - The next tile position for the enemy.
    */
-  tryMove(playerPos, tiles) {
+  tryMove(playerPos, tiles, occupied = null) {
     const rows = tiles.length;
     const cols = tiles[0].length;
     //const manhattanDist = Math.abs(this.coords.x - playerPos.x) + Math.abs(this.coords.y - playerPos.y);
     const manhattanDist = this.coords.manhattanDistanceTo(playerPos);
+    const currentKey = `${this.coords.x},${this.coords.y}`;
     
     // If the player is too far, do nothing.
     if (manhattanDist > this.agroRange) {
@@ -294,8 +302,12 @@ _idleStepFrom(from, tiles) {
       // Explore neighbors.
       for (const dir of directions) {
         const nextPos = new THREE.Vector2(currentPos.x + dir.x, currentPos.y + dir.y);
+        const nextKey = `${nextPos.x},${nextPos.y}`;
         // Check bounds.
         if (nextPos.x < 0 || nextPos.y < 0 || nextPos.x >= cols || nextPos.y >= rows) {
+          continue;
+        }
+        if (occupied && occupied.has(nextKey) && nextKey !== currentKey) {
           continue;
         }
         // Skip walls.

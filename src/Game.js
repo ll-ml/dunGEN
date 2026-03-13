@@ -48,6 +48,8 @@ export class Game {
 
         this.weather = null;
         this._weatherEnabled = true;
+        this._weatherMode = "rain";
+        this._weatherIntensity = 4.0;
         this.tickManager = new TickManager(600);
 
         this.combatMgr = new CombatManager();
@@ -79,6 +81,7 @@ export class Game {
         this._changelogClose = null;
 
         this._overworldEditorBound = false;
+        this._weatherControlsBound = false;
     }
 
 
@@ -99,11 +102,12 @@ export class Game {
         this._bindDeathModal();
         this._bindNpcModal();
         this._bindChangelogModal();
+        this._bindWeatherControls();
 
         this.weather = new WeatherSystem({
             areaSize: 800,
             height: 260,
-            intensity: 4.0,
+            intensity: this._weatherIntensity,
             mode: "none",
         });
         this.weather.addTo(this.scene);
@@ -141,8 +145,7 @@ export class Game {
 
     _initThree() {
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(window.devicePixelRatio);
+        this.renderer.setPixelRatio(window.devicePixelRatio || 1);
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.0;
@@ -152,12 +155,10 @@ export class Game {
         this.scene.background = new THREE.Color(0x98c6ff);
 
         // this will need to be its own object pretty sure at some point
-        this.camera = new THREE.PerspectiveCamera(
-            75,
-            window.innerWidth / window.innerHeight,
-            0.1,
-            1000
-          );
+        const { width, height } = this._getViewportSize();
+        this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+
+        this._resizeRendererToDisplaySize();
 
           this.camControls = new Camera(this.camera, window);
 
@@ -197,10 +198,23 @@ export class Game {
 
     _initResizeHandler() {
         window.addEventListener("resize", () => {
-            this.camera.aspect = window.innerWidth / window.innerHeight;
-            this.camera.updateProjectionMatrix();
-            this.renderer.setSize(window.innerWidth, window.innerHeight);
+            this.renderer.setPixelRatio(window.devicePixelRatio || 1);
+            this._resizeRendererToDisplaySize();
         });
+    }
+
+    _getViewportSize() {
+        const width = document.documentElement?.clientWidth ?? window.innerWidth;
+        const height = document.documentElement?.clientHeight ?? window.innerHeight;
+        return { width, height };
+    }
+
+    _resizeRendererToDisplaySize() {
+        if (!this.renderer || !this.camera) return;
+        const { width, height } = this._getViewportSize();
+        this.renderer.setSize(width, height);
+        this.camera.aspect = width / height;
+        this.camera.updateProjectionMatrix();
     }
 
     async loadOverworld() {
@@ -249,9 +263,9 @@ export class Game {
         this._applyEnvironmentFromMap(map);
 
         if (this.weather) {
-            //this.weather.setMode(map?.isDungeon ? "none" : "rain");
-            this.weather.setMode("none");
-            this.weather.setIntensity(map?.isDungeon ? 0.0 : 1.0);
+            const allowWeather = this._weatherEnabled && !map?.isDungeon;
+            this.weather.setMode(allowWeather ? this._weatherMode : "none");
+            this.weather.setIntensity(map?.isDungeon ? 0.0 : this._weatherIntensity);
         }
     }
 
@@ -578,6 +592,53 @@ export class Game {
         };
 
         this._overworldEditorBound = true;
+    }
+
+    _bindWeatherControls() {
+        if (this._weatherControlsBound) return;
+        const toggle = document.getElementById("weatherToggle");
+        const intensity = document.getElementById("weatherIntensity");
+        const rain = document.getElementById("weatherRain");
+        const snow = document.getElementById("weatherSnow");
+        if (!toggle || !intensity || !rain || !snow) return;
+
+        toggle.checked = this._weatherEnabled;
+        intensity.value = this._weatherIntensity.toString();
+        rain.checked = this._weatherMode === "rain";
+        snow.checked = this._weatherMode === "snow";
+
+        const applyWeather = () => {
+            if (!this.weather) return;
+            const allowWeather = this._weatherEnabled && !this.currentMap?.isDungeon;
+            this.weather.setMode(allowWeather ? this._weatherMode : "none");
+            this.weather.setIntensity(this.currentMap?.isDungeon ? 0.0 : this._weatherIntensity);
+        };
+
+        toggle.onchange = () => {
+            this._weatherEnabled = toggle.checked;
+            applyWeather();
+        };
+
+        intensity.oninput = () => {
+            const value = Number.parseFloat(intensity.value);
+            if (!Number.isFinite(value)) return;
+            this._weatherIntensity = Math.max(0, value);
+            applyWeather();
+        };
+
+        rain.onchange = () => {
+            if (!rain.checked) return;
+            this._weatherMode = "rain";
+            applyWeather();
+        };
+
+        snow.onchange = () => {
+            if (!snow.checked) return;
+            this._weatherMode = "snow";
+            applyWeather();
+        };
+
+        this._weatherControlsBound = true;
     }
 
     _setOverworldEditorDefaults() {
