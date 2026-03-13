@@ -8,6 +8,7 @@ import {
   pickWeightedAnchor,
   placeStructure,
 } from "./structurePlacement.js";
+import { startFishing, updateFishingTick } from "../skills/fishing.js";
 import { DungeonEntrance } from "../DungeonEntrance.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { StatusBar } from "../statusBar.js"
@@ -185,7 +186,7 @@ export class Overworld {
     actions.push({
       label: `Pick up ${entity.item.name}`,
       run: async (game) => {
-        await game.player.moveToAsync(entity.coords, this.denseMatrix);
+        await game.player.moveToAsync(entity.coords, this);
         game.player.addItem(entity.item, 1);
         this.removeEntity(entity);
         game.currentMapGroup?.remove(entity.model);
@@ -198,7 +199,7 @@ export class Overworld {
     actions.push({
       label: `Search ${entity.id}`,
       run: async (game) => {
-        await game.player.moveToAsync(entity.coords, this.denseMatrix);
+        await game.player.moveToAsync(entity.coords, this);
         game.ui.openStorageModal(entity);
       },
     });
@@ -241,6 +242,7 @@ export class Overworld {
 
   const glyph = this.tileGlyphAt(gridX, gridY);
   const FOREST_GLYPH = TILE_DEFS[TileId.FOREST].glyph;
+  const WATER_GLYPH = TILE_DEFS[TileId.WATER].glyph;
   if (glyph === FOREST_GLYPH) {
     actions.push({
       label: "Chop tree",
@@ -248,6 +250,15 @@ export class Overworld {
         await game.player.moveToAsync(new THREE.Vector2(gridX, gridY), this);
         //game.ui.addStatus?.("You swing your axe at the tree.");
         this.status.addStatus("You swing your axe at the tree.");
+      },
+    });
+  }
+
+  if (glyph === WATER_GLYPH) {
+    actions.push({
+      label: "Fish",
+      run: async (game) => {
+        startFishing(game, this, gridX, gridY);
       },
     });
   }
@@ -296,6 +307,9 @@ isWalkableTile(glyph) {
         obj.think(this);
       }
     }
+
+    updateFishingTick(game, this);
+    game.player?.skills?.updateUI?.();
   }
 
 spawnDungeonEntrances({ count = 8, minSpacing = 8, rng = Math.random } = {}) {
