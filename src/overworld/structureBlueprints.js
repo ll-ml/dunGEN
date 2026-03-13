@@ -38,7 +38,7 @@ export const STRUCTURE_BLUEPRINTS = Object.freeze({
       {
         id: "Crypt",
         kind: "StructureProp",
-        modelPath: "./public/crypt-small.glb",
+        modelPath: "./public/graveyard_assets/crypt-small.glb",
         x: 0,
         y: 0,
         scale: 11,
@@ -47,7 +47,7 @@ export const STRUCTURE_BLUEPRINTS = Object.freeze({
       {
         id: "GraveA",
         kind: "StructureProp",
-        modelPath: "./public/stones.glb",
+        modelPath: "./public/graveyard_assets/gravestone-cross.glb",
         x: 2,
         y: 1,
         scale: 6,
@@ -56,7 +56,7 @@ export const STRUCTURE_BLUEPRINTS = Object.freeze({
       {
         id: "GraveB",
         kind: "StructureProp",
-        modelPath: "./public/stones.glb",
+        modelPath: "./public/graveyard_assets/gravestone-round.glb",
         x: -2,
         y: 1,
         scale: 6,
@@ -65,7 +65,7 @@ export const STRUCTURE_BLUEPRINTS = Object.freeze({
       {
         id: "GraveC",
         kind: "StructureProp",
-        modelPath: "./public/stones.glb",
+        modelPath: "./public/graveyard_assets/gravestone-wide.glb",
         x: 2,
         y: -1,
         scale: 6,
@@ -74,7 +74,7 @@ export const STRUCTURE_BLUEPRINTS = Object.freeze({
       {
         id: "GraveD",
         kind: "StructureProp",
-        modelPath: "./public/stones.glb",
+        modelPath: "./public/graveyard_assets/gravestone-bevel.glb",
         x: -2,
         y: -1,
         scale: 6,
@@ -117,7 +117,7 @@ export const STRUCTURE_BLUEPRINTS = Object.freeze({
       {
         id: "HouseA",
         kind: "StructureProp",
-        modelPath: "./public/alternate-floor.glb",
+        modelPath: "./public/village_assets/stall-red.glb",
         x: -2,
         y: 0,
         scale: 11,
@@ -126,7 +126,7 @@ export const STRUCTURE_BLUEPRINTS = Object.freeze({
       {
         id: "HouseB",
         kind: "StructureProp",
-        modelPath: "./public/alternate-floor.glb",
+        modelPath: "./public/village_assets/stall-green.glb",
         x: 0,
         y: 0,
         scale: 11,
@@ -135,7 +135,7 @@ export const STRUCTURE_BLUEPRINTS = Object.freeze({
       {
         id: "HouseC",
         kind: "StructureProp",
-        modelPath: "./public/alternate-floor.glb",
+        modelPath: "./public/village_assets/stall.glb",
         x: 2,
         y: 0,
         scale: 11,
@@ -144,7 +144,7 @@ export const STRUCTURE_BLUEPRINTS = Object.freeze({
       {
         id: "HouseD",
         kind: "StructureProp",
-        modelPath: "./public/alternate-floor.glb",
+        modelPath: "./public/village_assets/cart.glb",
         x: -2,
         y: 2,
         scale: 11,
@@ -153,7 +153,7 @@ export const STRUCTURE_BLUEPRINTS = Object.freeze({
       {
         id: "HouseE",
         kind: "StructureProp",
-        modelPath: "./public/alternate-floor.glb",
+        modelPath: "./public/village_assets/cart-high.glb",
         x: 0,
         y: 2,
         scale: 11,
@@ -162,7 +162,7 @@ export const STRUCTURE_BLUEPRINTS = Object.freeze({
       {
         id: "HouseF",
         kind: "StructureProp",
-        modelPath: "./public/alternate-floor.glb",
+        modelPath: "./public/village_assets/fountain-round.glb",
         x: 2,
         y: 2,
         scale: 11,
@@ -171,3 +171,22 @@ export const STRUCTURE_BLUEPRINTS = Object.freeze({
     ],
   },
 });
+
+export const STRUCTURE_SPAWNS = Object.freeze([
+  {
+    id: "village_strip",
+    count: 1,
+    tries: 260,
+    allowRotation: true,
+    allowMirrorX: true,
+    allowMirrorY: false,
+  },
+  {
+    id: "graveyard_small",
+    count: 1,
+    tries: 220,
+    allowRotation: true,
+    allowMirrorX: true,
+    allowMirrorY: true,
+  },
+]);
