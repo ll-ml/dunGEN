@@ -336,12 +336,16 @@ export class Dungeon {
                         {
                             scale: TILE_SIZE, 
                             height: 0, 
-                            colormap: "./public/Textures/colormap3.png"
+                            colormap: "./public/Textures/colormap3.png",
+                            faction: "legion"
                         });
                 } else {
                     hardEnemy = new Enemy("./public/character-orc.glb",
                         "Orc Warrior",
-                        50, ex, ey, 8, 10,);
+                        50, ex, ey, 8, 10,
+                        {
+                            faction: "orc"
+                        });
                 }
                 this.entities.push(hardEnemy);
             } else {
@@ -351,7 +355,8 @@ export class Dungeon {
                     {
                         scale: TILE_SIZE,
                         height: 0,
-                        colormap: "./public/Textures/colormap2.png"
+                        colormap: "./public/Textures/colormap2.png",
+                        faction: "undead"
 
                     });
                 this.entities.push(easyEnemy);
@@ -592,22 +597,200 @@ getActionsAt({ gridX, gridY, entity }) {
             return;
         }
 
-        for (const e of this.entities) {
-            if (!(e instanceof Enemy)) continue;
+        const enemies = this.entities.filter((entity) => entity instanceof Enemy);
+        const keyFrom = (coords) => `${coords.x},${coords.y}`;
+        const dirs = [
+            [1, 0],
+            [-1, 0],
+            [0, 1],
+            [0, -1],
+        ];
 
-            e.think(player.coords, this.denseMatrix, this);
+        const isWalkableTile = (tile) =>
+            tile !== TileType.WALL &&
+            tile !== TileType.WATER &&
+            tile !== TileType.DIRT &&
+            tile !== TileType.PEBBLE_DIRT &&
+            tile !== TileType.ROCK_DIRT;
 
-            const dist = 
-                Math.abs(e.coords.x - player.coords.x) + Math.abs(e.coords.y - player.coords.y);
+        const distanceFields = new Map();
+        const buildDistanceField = (targetCoords) => {
+            const rows = this.denseMatrix.length;
+            const cols = this.denseMatrix[0]?.length ?? 0;
+            const dist = Array.from({ length: rows }, () => Array(cols).fill(Infinity));
 
-            if (dist === 1) {
-                if (!e.inCombat) {
-                    combatMgr.engage(e.combat, player.combat);
+            if (
+                targetCoords.x < 0 || targetCoords.y < 0 ||
+                targetCoords.x >= cols || targetCoords.y >= rows
+            ) {
+                return dist;
+            }
+
+            const queue = [];
+            dist[targetCoords.y][targetCoords.x] = 0;
+            queue.push([targetCoords.x, targetCoords.y]);
+
+            let qi = 0;
+            while (qi < queue.length) {
+                const [cx, cy] = queue[qi++];
+                const base = dist[cy][cx];
+
+                for (const [dx, dy] of dirs) {
+                    const nx = cx + dx;
+                    const ny = cy + dy;
+                    if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+                    if (!isWalkableTile(this.denseMatrix[ny][nx])) continue;
+                    if (dist[ny][nx] <= base + 1) continue;
+                    dist[ny][nx] = base + 1;
+                    queue.push([nx, ny]);
+                }
+            }
+
+            return dist;
+        };
+
+        const getDistanceField = (targetCoords) => {
+            const key = keyFrom(targetCoords);
+            if (!distanceFields.has(key)) {
+                distanceFields.set(key, buildDistanceField(targetCoords));
+            }
+            return distanceFields.get(key);
+        };
+
+        const pickStepFromField = (enemy, field, occupied) => {
+            const current = field[enemy.coords.y]?.[enemy.coords.x];
+            if (!Number.isFinite(current) || current <= 1) return null;
+
+            let best = null;
+            let bestDist = current;
+
+            for (const [dx, dy] of dirs) {
+                const nx = enemy.coords.x + dx;
+                const ny = enemy.coords.y + dy;
+                const candDist = field[ny]?.[nx];
+                if (!Number.isFinite(candDist)) continue;
+                if (candDist < 1) continue;
+                if (candDist >= bestDist) continue;
+
+                const candKey = `${nx},${ny}`;
+                if (occupied.has(candKey)) continue;
+                if (!isWalkableTile(this.denseMatrix[ny][nx])) continue;
+
+                bestDist = candDist;
+                best = new THREE.Vector2(nx, ny);
+            }
+
+            return best;
+        };
+
+        const occupied = new Set(
+            enemies
+                .filter((enemy) => !enemy._isDying && !enemy.readyToRemove)
+                .map((enemy) => keyFrom(enemy.coords))
+        );
+
+        const isAliveEnemy = (enemy) => !enemy._isDying && !enemy.readyToRemove;
+        const pickHostileTarget = (enemy) => {
+            let playerDist = Infinity;
+            if (player?.combat?.hp > 0) {
+                playerDist = Math.abs(enemy.coords.x - player.coords.x) + Math.abs(enemy.coords.y - player.coords.y);
+            }
+
+            let bestEnemy = null;
+            let bestEnemyDist = Infinity;
+
+            for (const other of enemies) {
+                if (other === enemy) continue;
+                if (!isAliveEnemy(other)) continue;
+                if (other.faction && enemy.faction && other.faction === enemy.faction) continue;
+                const dist = Math.abs(enemy.coords.x - other.coords.x) + Math.abs(enemy.coords.y - other.coords.y);
+                if (dist < bestEnemyDist) {
+                    bestEnemy = other;
+                    bestEnemyDist = dist;
+                }
+            }
+
+            const playerInRange = playerDist <= enemy.agroRange;
+            const enemyInRange = bestEnemyDist <= enemy.agroRange;
+
+            if (playerInRange) {
+                if (enemyInRange && bestEnemyDist < playerDist) return bestEnemy;
+                return player;
+            }
+
+            if (enemyInRange) return bestEnemy;
+            return null;
+        };
+
+        for (const e of enemies) {
+            if (!isAliveEnemy(e)) continue;
+
+            const target = pickHostileTarget(e);
+            let nextStep = null;
+
+            if (target) {
+                if (target === player) {
+                    e.think(player.coords, this.denseMatrix, this, occupied);
+                    nextStep = e.path?.[0] ?? null;
+                } else {
+                    const field = getDistanceField(target.coords);
+                    nextStep = pickStepFromField(e, field, occupied);
+                    if (nextStep) {
+                        e.path = [nextStep];
+                        e._advanceTarget?.(this);
+                        e._setAction?.("walk");
+                    } else {
+                        e.path = [];
+                        e._targetWorldPos = null;
+                        e._setAction?.("idle");
+                    }
+                }
+            } else {
+                e.think(player.coords, this.denseMatrix, this, occupied);
+                nextStep = e.path?.[0] ?? null;
+            }
+
+            if (nextStep) {
+                if (e._lastCoords && nextStep.equals(e._lastCoords)) {
+                    const detour = e._idleStepFrom?.(e.coords, this.denseMatrix, occupied) ?? e.coords;
+                    if (!detour.equals(e.coords)) {
+                        e.path = [detour];
+                        e._advanceTarget?.(this);
+                        e._setAction?.("walk");
+                        nextStep = detour;
+                    } else {
+                        e.path = [];
+                        e._targetWorldPos = null;
+                        e._setAction?.("idle");
+                        nextStep = null;
+                    }
+                }
+
+                if (nextStep) {
+                    const nextKey = keyFrom(nextStep);
+                    if (!occupied.has(nextKey)) {
+                        occupied.delete(keyFrom(e.coords));
+                        occupied.add(nextKey);
+                    }
+                }
+            }
+
+            const dist = target
+                ? Math.abs(e.coords.x - target.coords.x) + Math.abs(e.coords.y - target.coords.y)
+                : Infinity;
+
+            if (target && dist === 1) {
+                if (!e.inCombat || e.combatTarget !== target) {
+                    combatMgr.engage(e.combat, target.combat);
                 }
                 e.inCombat = true;
+                e.combatTarget = target;
             } else {
+                if (e.inCombat) {
+                    combatMgr.disengage(e.combat);
+                }
                 e.inCombat = false;
-                combatMgr.disengage(e.combat);
+                e.combatTarget = null;
             }
         }
 
