@@ -573,7 +573,6 @@ getActionsAt({ gridX, gridY, entity }) {
 }
 
     updateTick(game, tickSeconds) {
-        console.log("UPDATE CALLED")
         const player = game.player;
         if (!player) return;
 
