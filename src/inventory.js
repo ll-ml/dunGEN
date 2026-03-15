@@ -22,6 +22,7 @@ export class InventoryItem {
       this.stackable = stackConfig.stackable;
       this.maxStackSize = stackConfig.maxStackSize;
       this.quantity = stackConfig.quantity || 1; // should default to 1
+      this.glbPath = stackConfig.glbPath || null;
 
       this.onUse = typeof onUse === "function"
         ? onUse
@@ -122,7 +123,7 @@ export function setupInventoryContext({ player, getMap, getScene, ui }) {
           label: `Drop ${item.name}`,
           onClick: () => {
             if (!map || !scene) return;
-            const glbPath =
+            const glbPath = item.glbPath ||
               item.imagePath.substring(0, item.imagePath.lastIndexOf(".")) +
               ".glb";
             const itemModel = new DroppedItem(

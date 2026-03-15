@@ -30,7 +30,8 @@ export function generateLoot(count = 1) {
    export function spawnDroppedItem(x, y, entities, scene, map = null) {
     const droppedItem =  generateLoot(1)[0];
     if (droppedItem.id === "Gold Coin") {console.warn("ERROR: attempted to spawn coin with no glb model"); return;}
-    const glbPath = droppedItem.imagePath.substring(0, droppedItem.imagePath.lastIndexOf('.')) + '.glb'; // why not store the full glb path in the item?
+    const glbPath = droppedItem.glbPath ||
+      droppedItem.imagePath.substring(0, droppedItem.imagePath.lastIndexOf('.')) + '.glb'; // why not store the full glb path in the item?
 
     const item = new DroppedItem(droppedItem.id, x, y, glbPath, droppedItem);
 

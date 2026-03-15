@@ -1,9 +1,49 @@
 import * as THREE from "three";
 import { generateOverworldWFC, TILE_DEFS, TileId } from "./wfc.js";
+import { STRUCTURE_BLUEPRINTS, STRUCTURE_SPAWNS } from "./structureBlueprints.js";
+import {
+  findAnchorCandidates,
+  isOccupied,
+  makeOccupancy,
+  pickWeightedAnchor,
+  placeStructure,
+} from "./structurePlacement.js";
+import { startFishing, updateFishingTick } from "../skills/fishing.js";
 import { DungeonEntrance } from "../DungeonEntrance.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { StatusBar } from "../statusBar.js"
 import { NPC } from "../NPC.js";
+
+function hashSeed(seed) {
+  if (typeof seed === "number" && Number.isFinite(seed)) return seed >>> 0;
+  const str = String(seed ?? "");
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function makeRng(seed) {
+  if (seed == null) return Math.random;
+  let state = hashSeed(seed) || 1;
+  return () => {
+    state += 0x6D2B79F5;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function rollTransform(spawn, rng) {
+  return {
+    rotation: spawn.allowRotation ? Math.floor(rng() * 4) : 0,
+    mirrorX: spawn.allowMirrorX ? rng() < 0.5 : false,
+    mirrorY: spawn.allowMirrorY ? rng() < 0.5 : false,
+  };
+}
  
 export class Overworld {
   constructor(width, height, { seed = null, weights = null, tileSize = 11 } = {}) {
@@ -13,14 +53,15 @@ export class Overworld {
     this.weights = weights;
     this.tileSize = tileSize;
 
+    this._rng = makeRng(this.seed);
+    this._structureOccupancy = makeOccupancy();
+
     this.offsetX = -(this.width * this.tileSize) / 2;
     this.offsetZ = -(this.height * this.tileSize) / 2;
 
-    this.denseMatrix = generateOverworldWFC(this.width, this.height, {
-      weights: this.weights,
-    });
-
     this.entities = [];
+
+    this._resetGenerationState({ weights: this.weights });
 
     this.groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
@@ -37,11 +78,54 @@ export class Overworld {
   }
 
   regenerate({ weights = null } = {}) {
+    this._resetGenerationState({ weights });
+    return this.denseMatrix;
+  }
+
+  _resetGenerationState({ weights = null } = {}) {
     this.weights = weights ?? this.weights;
+    this._rng = makeRng(this.seed);
+    this.entities = [];
+    this._structureOccupancy = makeOccupancy();
     this.denseMatrix = generateOverworldWFC(this.width, this.height, {
       weights: this.weights,
+      rng: this._rng,
     });
-    return this.denseMatrix;
+    this._placeStructures();
+  }
+
+  _placeStructures({ spawns = STRUCTURE_SPAWNS } = {}) {
+    if (!Array.isArray(spawns) || spawns.length === 0) return;
+    const rng = this._rng ?? Math.random;
+
+    for (const spawn of spawns) {
+      const blueprint = STRUCTURE_BLUEPRINTS[spawn.id];
+      if (!blueprint) continue;
+
+      const count = Math.max(0, spawn.count ?? 1);
+      const tries = spawn.tries ?? undefined;
+
+      for (let i = 0; i < count; i++) {
+        const transform = rollTransform(spawn, rng);
+        const candidates = findAnchorCandidates(this, blueprint, {
+          rng,
+          tries,
+          occupancy: this._structureOccupancy,
+          transform,
+        });
+        const anchor = pickWeightedAnchor(candidates, rng);
+        if (!anchor) continue;
+
+        placeStructure(this, blueprint, anchor, {
+          occupancy: this._structureOccupancy,
+          rotation: transform.rotation,
+          mirrorX: transform.mirrorX,
+          mirrorY: transform.mirrorY,
+          applyTiles: spawn.applyTiles ?? true,
+          spawnProps: spawn.spawnProps ?? true,
+        });
+      }
+    }
   }
 
   addStatus(message) {
@@ -102,7 +186,7 @@ export class Overworld {
     actions.push({
       label: `Pick up ${entity.item.name}`,
       run: async (game) => {
-        await game.player.moveToAsync(entity.coords, this.denseMatrix);
+        await game.player.moveToAsync(entity.coords, this);
         game.player.addItem(entity.item, 1);
         this.removeEntity(entity);
         game.currentMapGroup?.remove(entity.model);
@@ -115,7 +199,7 @@ export class Overworld {
     actions.push({
       label: `Search ${entity.id}`,
       run: async (game) => {
-        await game.player.moveToAsync(entity.coords, this.denseMatrix);
+        await game.player.moveToAsync(entity.coords, this);
         game.ui.openStorageModal(entity);
       },
     });
@@ -158,6 +242,7 @@ export class Overworld {
 
   const glyph = this.tileGlyphAt(gridX, gridY);
   const FOREST_GLYPH = TILE_DEFS[TileId.FOREST].glyph;
+  const WATER_GLYPH = TILE_DEFS[TileId.WATER].glyph;
   if (glyph === FOREST_GLYPH) {
     actions.push({
       label: "Chop tree",
@@ -165,6 +250,15 @@ export class Overworld {
         await game.player.moveToAsync(new THREE.Vector2(gridX, gridY), this);
         //game.ui.addStatus?.("You swing your axe at the tree.");
         this.status.addStatus("You swing your axe at the tree.");
+      },
+    });
+  }
+
+  if (glyph === WATER_GLYPH) {
+    actions.push({
+      label: "Fish",
+      run: async (game) => {
+        startFishing(game, this, gridX, gridY);
       },
     });
   }
@@ -177,11 +271,13 @@ isWalkableTile(glyph) {
   return glyph !== water;
 }
 
-isWalkableAt(x, y) {
-  const g = this.denseMatrix[y]?.[x];
-  return g != null && this.isWalkableTile(g);
+  isWalkableAt(x, y) {
+    const g = this.denseMatrix[y]?.[x];
+    if (g == null || !this.isWalkableTile(g)) return false;
+    if (isOccupied(this._structureOccupancy, x, y)) return false;
+    return true;
 
-}
+  }
 
   removeEntity(entity) {
     const idx = this.entities.indexOf(entity);
@@ -211,6 +307,9 @@ isWalkableAt(x, y) {
         obj.think(this);
       }
     }
+
+    updateFishingTick(game, this);
+    game.player?.skills?.updateUI?.();
   }
 
 spawnDungeonEntrances({ count = 8, minSpacing = 8, rng = Math.random } = {}) {

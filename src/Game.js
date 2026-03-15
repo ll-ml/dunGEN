@@ -726,7 +726,6 @@ export class Game {
             this.TILE_SIZE
         );
 
-        this.currentMap.entities = [];
         this.currentMap.spawnDungeonEntrances?.({ count: 6, minSpacing: 10 });
         this.currentMap.spawnNPCs?.({ count: 1 });
         for (const ent of this.currentMap.entities) {
