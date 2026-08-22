@@ -28,29 +28,30 @@ export class WeatherSystem {
     scene.add(this.group);
   }
 
-  removeFrom(scene) {
-    scene.remove(this.group);
-  }
-
   setMode(mode) {
     if (this.mode === mode) return;
     this.mode = mode;
     this._rebuild();
   }
 
-  setAreaSize(v) {
-    this.areaSize = v;
-    this._half = v * 0.5;
+  setIntensity(v) {
+    const nextIntensity = Number.isFinite(v) ? Math.max(0, v) : 0;
+    if (this.intensity === nextIntensity) return;
+    this.intensity = nextIntensity;
     if (this.mode !== "none") this._rebuild();
   }
 
-
-  setIntensity(v) {
-    this.intensity = v;
-  }
-
   _rebuild() {
-    while (this.group.children.length) this.group.remove(this.group.children[0]);
+    while (this.group.children.length) {
+      const child = this.group.children[0];
+      this.group.remove(child);
+      child.geometry?.dispose?.();
+      if (Array.isArray(child.material)) {
+        child.material.forEach((material) => material.dispose?.());
+      } else {
+        child.material?.dispose?.();
+      }
+    }
     this._snow = null;
     this._rain = null;
 
@@ -144,11 +145,10 @@ export class WeatherSystem {
 
   update(dt, cameraTarget) {
     if (cameraTarget) {
-      const desired = new THREE.Vector3(cameraTarget.x, 0, cameraTarget.z);
-
       const t = 1.0 - Math.exp(-this._followSpeed * dt);
-
-      this._followPos.lerp(desired, t);
+      this._followPos.x += (cameraTarget.x - this._followPos.x) * t;
+      this._followPos.y = 0;
+      this._followPos.z += (cameraTarget.z - this._followPos.z) * t;
       this.group.position.set(this._followPos.x, 0, this._followPos.z);
     }
 

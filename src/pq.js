@@ -9,16 +9,8 @@ export class PriorityQueue {
       this._cmp = comparator;
     }
   
-    size() {
-      return this._heap.length;
-    }
-  
     isEmpty() {
       return this._heap.length === 0;
-    }
-  
-    peek() {
-      return this._heap[0];
     }
   
     push(value) {

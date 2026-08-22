@@ -68,7 +68,6 @@ export class ModelComponent {
         );
       }
 
-      entity._recomputeBox();
       return entity.model;
     });
 

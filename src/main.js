@@ -2,5 +2,3 @@ import { Game } from "./Game.js"
 
 const game = new Game({ tileSize: 11, worldW: 150, worldH: 150 });
 await game.start().catch(console.error);
-
-console.log(game.currentMap);

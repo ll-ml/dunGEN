@@ -2,7 +2,10 @@ import { Entity } from "./entity.js";
 import { ModelComponent } from "./components/modelComponent.js";
 import { GridPlacement } from "./components/gridPlacement.js";
 
-export class DungeonEntity extends Entity {
+/**
+ * An entity with a loadable model positioned from grid coordinates.
+ */
+export class GridEntity extends Entity {
   constructor(modelPath, gridX, gridY, opts = {}) {
     super(gridX, gridY, { kind: opts.kind, id: opts.id });
 

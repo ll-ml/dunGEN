@@ -46,7 +46,12 @@ function rollTransform(spawn, rng) {
 }
  
 export class Overworld {
-  constructor(width, height, { seed = null, weights = null, tileSize = 11 } = {}) {
+  constructor(width, height, {
+    seed = null,
+    weights = null,
+    tileSize = 11,
+    status = null,
+  } = {}) {
     this.width = width;
     this.height = height;
     this.seed = seed;
@@ -63,9 +68,7 @@ export class Overworld {
 
     this._resetGenerationState({ weights: this.weights });
 
-    this.groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-
-    this.status = new StatusBar(); // TODO: this really should be in the UI rather than a direct member of overworld
+    this.status = status ?? new StatusBar();
 
     const worldRadius = 50;
 
@@ -151,59 +154,12 @@ export class Overworld {
     return this.denseMatrix[y]?.[x] ?? null;
   }
 
-  pickWorldPoint(raycaster) {
-    const out = new THREE.Vector3();
-    if (!raycaster.ray.intersectPlane(this.groundPlane, out)) return null;
-    return out;
+  blocksInteractionAt(x, y) {
+    return this.tileGlyphAt(x, y) === TILE_DEFS[TileId.FOREST].glyph;
   }
-
-  pickEntity(raycaster) {
-  let best = null;
-  let bestDist = Infinity;
-  const tmp = new THREE.Vector3();
-
-  for (const obj of this.entities) {
-    if (!obj.model) continue;
-
-    obj._recomputeBox();
-
-    if (raycaster.ray.intersectBox(obj.hitbox, tmp)) {
-      const d = raycaster.ray.origin.distanceTo(tmp);
-      if (d < bestDist) {
-        bestDist = d;
-        best = obj;
-      }
-    }
-  }
-
-  return best;
-}
 
   getActionsAt({ gridX, gridY, entity }) {
     const actions = [];
-
-  if (entity?.kind === "DroppedItem") {
-    actions.push({
-      label: `Pick up ${entity.item.name}`,
-      run: async (game) => {
-        await game.player.moveToAsync(entity.coords, this);
-        game.player.addItem(entity.item, 1);
-        this.removeEntity(entity);
-        game.currentMapGroup?.remove(entity.model);
-        game.ui.renderInventory(game.player.inventory);
-      },
-    });
-  }
-
-  if (entity?.kind === "Storage") {
-    actions.push({
-      label: `Search ${entity.id}`,
-      run: async (game) => {
-        await game.player.moveToAsync(entity.coords, this);
-        game.ui.openStorageModal(entity);
-      },
-    });
-  }
 
   if (entity?.kind === "NPC") {
     actions.push({
@@ -281,7 +237,10 @@ isWalkableTile(glyph) {
 
   removeEntity(entity) {
     const idx = this.entities.indexOf(entity);
-    if (idx >= 0) this.entities.splice(idx, 1);
+    if (idx < 0) return false;
+    entity.cancelVisuals?.();
+    this.entities.splice(idx, 1);
+    return true;
   }
 
   spawnNPCs({ count = 1, rng = Math.random } = {}) {
@@ -335,9 +294,10 @@ spawnDungeonEntrances({ count = 8, minSpacing = 8, rng = Math.random } = {}) {
     const { x, y } = tryPick();
 
     if (!this.isWalkableAt(x, y)) continue;
+    if (this.blocksInteractionAt(x, y)) continue;
     if (!isFarEnough(x, y)) continue;
 
-    const ent = new DungeonEntrance(x, y);
+    const ent = new DungeonEntrance(x, y, { scale: this.tileSize });
     this.entities.push(ent);
     placed.push({ x, y });
   }

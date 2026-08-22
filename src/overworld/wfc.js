@@ -82,19 +82,6 @@ function pickWeightedFromMask(mask, weights, rng) {
   return TILE_ORDER[0];
 }
 
-function pickWeighted(options, weights, rng = Math.random) {
-    let total = 0;
-    for (const id of options) total += weights[id] ?? 1;
-    let r = rng() * total;
-    for (const id of options) {
-        r -= (weights[id] ?? 1);
-        if (r <= 0) return id;
-    }
-
-    return options[options.length - 1];
-}
-
-
 function allowedMaskFor(tileId) {
     const allowed = TILE_DEFS[tileId].allowed;
     let mask = 0;
@@ -309,4 +296,3 @@ function smoothSingletons(grid, width, height, passes = 2) {
 
   return grid;
 }
-

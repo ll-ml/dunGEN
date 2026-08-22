@@ -25,8 +25,6 @@ export function buildDungeon(group, modelMap, dungeonTiles, TILE_SIZE) {
                 dirtCoords.push([x, y]); // better than using THREE.Vector2D? 
             } else {
                 if (tile === TileType.DOOR) {
-                    // Swapped out door model logic for now
-                    // See commit: https://github.com/ll-ml/dunGEN.io/commit/defcdfbc231ccf250a93309e5a539d25883fc84d
                     const doorwayModel = modelMap[TileType.FLOOR];
                     const doorWayInst = doorwayModel.clone();
 
@@ -37,6 +35,7 @@ export function buildDungeon(group, modelMap, dungeonTiles, TILE_SIZE) {
                     )
                     doorWayInst.scale.setScalar(TILE_SIZE);
                     group.add(doorWayInst);
+                    continue;
                 }
                 // this actually allows rocks in with floor underneath not sure if this code is worth having at the moment
                 if (tile === TileType.ROCK) {

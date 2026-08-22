@@ -1,6 +1,5 @@
-import { InventoryItem } from "./inventory.js";
+import { cloneInventoryItem, InventoryItem } from "./inventory.js";
 import { DroppedItem } from "./storageItem.js";
-import { Vector2 } from "three";
 
 /**
  * Generate `count` loot items:
@@ -12,7 +11,7 @@ export function generateLoot(count = 1) {
     for (let i = 0; i < count; i++) {
       const rarity = rollRarity();
       const table  = lootTables[rarity];
-      result.push(weightedChoice(table));
+      result.push(cloneInventoryItem(weightedChoice(table)));
     }
     return result;
   }
@@ -29,18 +28,21 @@ export function generateLoot(count = 1) {
     */
    export function spawnDroppedItem(x, y, entities, scene, map = null) {
     const droppedItem =  generateLoot(1)[0];
-    if (droppedItem.id === "Gold Coin") {console.warn("ERROR: attempted to spawn coin with no glb model"); return;}
     const glbPath = droppedItem.glbPath ||
       droppedItem.imagePath.substring(0, droppedItem.imagePath.lastIndexOf('.')) + '.glb'; // why not store the full glb path in the item?
 
-    const item = new DroppedItem(droppedItem.id, x, y, glbPath, droppedItem);
+    const item = new DroppedItem(
+      droppedItem.id,
+      x,
+      y,
+      glbPath,
+      droppedItem,
+      { tileSize: map?.tileSize }
+    );
 
     entities.push(item);
 
     item.addTo(scene, map)
-      .then(model => {
-        item.inScene = true;
-      })
       .catch(err => {
         console.error("ERROR: could add dropped item to scene", err);
       })
@@ -51,14 +53,14 @@ const lootTables = {
     common: [
       { item: new InventoryItem("Cheese Wheel",  "Cheese Wheel",  "./Items/cheese.png",  "A wheel of cheese.", "food", (player, dungeon) => { player.combat.hp = Math.min(player.combat.hp + 3, player.maxHealth); player.interact(); dungeon.addStatus("You eat a cheese wheel and recover 3 HP.");}, {stackable: true, maxStackSize: 16}),      weight: 50 },
       { item: new InventoryItem("Raw Meat",   "Raw meat", "./Items/meat-raw.png",  "Fresh but raw.", "food", (player, dungeon) => { player.combat.hp = Math.min(player.combat.hp + 5, player.maxHealth); player.interact(); dungeon.addStatus("You consume raw meat in order to recover 5 HP.")}, {stackable: true, maxStackSize: 16}),      weight: 30 },
-      { item: new InventoryItem("Gold Coin",   "Gold coin","./Items/coin.png",  "It glitters.", "coins", (player, dungeon) =>{ dungeon.addStatus("You take a look at your plunder."); player.interact();}, {stackable: true, maxStackSize: 1000}),         weight: 20 },
+      { item: new InventoryItem("Gold Coin",   "Gold coin","./Items/coin.png",  "It glitters.", "coins", (player, dungeon) =>{ dungeon.addStatus("You take a look at your plunder."); player.interact();}, {stackable: true, maxStackSize: 1000, glbPath: "./public/coin.glb"}),         weight: 20 },
     ],
     uncommon: [
       { item: new InventoryItem("Cake",  "Cake",    "./Items/cake.png",  "An entire cake.", "food", (player, dungeon) =>{ player.combat.hp = Math.min(player.combat.hp + 7, player.maxHealth); dungeon.addStatus("You consume the entire cake."); player.interact();}, {stackable: false}), weight: 40 },
       { item: new InventoryItem("Coconut",  "Coconut","./Items/coconut.png","Restores HP.", "food", (player, dungeon) => { player.combat.hp = Math.min(player.combat.hp + 10, player.maxHealth); dungeon.addStatus("You break open the cocunut and consume it whole."); player.interact();}), weight: 10 },
     ],
     rare: [
-      { item: new InventoryItem("Gold Coin",   "Gold coin","./Items/coin.png",  "It glitters.", "coins", (player, dungeon) =>{ dungeon.addStatus("You take a look at your plunder."); player.interact();}, {quantity: 100, stackable: true, maxStackSize: 1000}),       weight: 1 },
+      { item: new InventoryItem("Gold Coin",   "Gold coin","./Items/coin.png",  "It glitters.", "coins", (player, dungeon) =>{ dungeon.addStatus("You take a look at your plunder."); player.interact();}, {quantity: 100, stackable: true, maxStackSize: 1000, glbPath: "./public/coin.glb"}),       weight: 1 },
     ]
   };
 

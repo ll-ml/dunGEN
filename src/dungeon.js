@@ -1,14 +1,20 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import {TileType, Room, Pool, TILE_SIZE } from './types.js'
-import { Player } from './player.js'
+import {TileType, Room, TILE_SIZE } from './types.js'
 import { Enemy } from './enemy.js';
 import { StorageItem } from './storageItem.js'
 import { generateLoot, spawnDroppedItem } from "./loot.js";
+import { clearLegacyCombatState } from "./legacyCombatState.js";
+import { StatusBar } from "./statusBar.js";
+import { DungeonEntrance } from "./DungeonEntrance.js";
 
 
 export class Dungeon {
-    constructor(width, height, { tileSize = 11, theme = (Math.random() < 0.25 ? "arena" : "default") } = {}) {
+    constructor(width, height, {
+        tileSize = 11,
+        theme = (Math.random() < 0.25 ? "arena" : "default"),
+        status = null,
+    } = {}) {
         this.width = width;
         this.height = height;
         this.tileSize = tileSize;
@@ -16,14 +22,12 @@ export class Dungeon {
         this.offsetX = -(this.width * this.tileSize) / 2;
         this.offsetZ = -(this.height * this.tileSize) / 2;
 
-        this.groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-
-
         this.denseMatrix = this.createEmptyMatrix();
         this.theme = theme;
         this.entities = [];
         this.dungeonRooms = [];
-        this.statusMessages = [];
+        this.overworldExit = null;
+        this.status = status ?? new StatusBar();
 
         this.env = {
           background: 0x2f2221,
@@ -72,34 +76,15 @@ export class Dungeon {
                 ['./public/floor.glb',       TileType.FLOOR,     null],
                 ['./public/floor-detail.glb',TileType.PEBBLES,   null],
                 ['./public/stones.glb',       TileType.ROCK,   null], // this needs to be hacked a bit to work properly right now
-                ['./public/wall-gate.glb',   TileType.DOOR,      './public/Textures/colormap3.png'],
             ],
             arena: [
                 ['./public/wall.glb',                   TileType.WALL,      null],
                 ['./public/alternate-floor.glb',        TileType.FLOOR,      './public/Textures/colormap3.png'],
                 ['./public/alternate-floor-detail.glb', TileType.PEBBLES,   './public/Textures/colormap3.png'],
                 ['./public/floor.glb',                  TileType.ROCK,   null],
-                ['./public/wall-gate.glb',              TileType.DOOR,      './public/Textures/colormap3.png'],
 
             ]
           }
-
-
-          /*
-        // Duplicates are to ensure no holes in dungeon for now
-        await Promise.all([
-            loadModel('./public/wall.glb', TileType.WALL),
-            //loadModel('./public/alternate-wall.glb', TileType.WALL, './public/Textures/colormap3.png'),
-            //loadModel('./public/floor.glb', TileType.FLOOR),
-            loadModel('./public/alternate-floor.glb', TileType.FLOOR, './public/Textures/colormap3.png'),
-            //loadModel('./public/floor-detail.glb', TileType.PEBBLES),
-            loadModel('./public/alternate-floor-detail.glb', TileType.PEBBLES, './public/Textures/colormap3.png'),
-            loadModel('./public/floor.glb', TileType.ROCK),
-            loadModel('./public/wall.glb', TileType.WALL),
-            //loadModel('./public/wall-opening.glb', TileType.DOOR_WAY),
-            loadModel('./public/wall-gate.glb', TileType.DOOR, './public/Textures/colormap3.png'),
-        ]);
-        */
        const defs = themes[this.theme] || themes.default;
 
        await Promise.all(defs.map(([url, key, cmap]) => 
@@ -157,37 +142,8 @@ export class Dungeon {
       
       
 
-    showCurrentState() {
-        let outString = "";
-        this.denseMatrix.forEach((row) => {
-            outString += row.toString() +"\n";
-        });
-        console.log(outString);
-    }
-
     addStatus(message) {
-        this.statusMessages.push(message);
-
-        if (this.statusMessages.length > 10) {
-            this.statusMessages.shift();
-        }
-
-        this.updateStatusArea();
-
-        return;
-    }
-
-    updateStatusArea() {
-        const statusArea = document.getElementById('statusArea');
-
-        if (statusArea) {
-            statusArea.innerHTML = this.statusMessages.join('<br>');
-        }
-    }
-
-    removeStatus(message) {
-        this.statusMessages = this.statusMessages.filter(m => m !== message);
-        this.updateStatusArea();
+        this.status.addStatus(message);
     }
 
     randInt(min, max) {
@@ -274,44 +230,129 @@ export class Dungeon {
       
 
     placeDoors() {
+        const gates = [];
+        const addDoor = (x, y) => {
+            if (this.denseMatrix[y]?.[x] === TileType.DOOR) return null;
+            this.denseMatrix[y][x] = TileType.DOOR;
+            const gate = new DungeonEntrance(x, y, {
+                modelPath: "./public/wall-gate.glb",
+                scale: this.tileSize,
+                colormap: "./public/Textures/colormap3.png",
+                id: "Dungeon Gate",
+                label: "Enter next dungeon",
+            });
+            this.entities.push(gate);
+            gates.push(gate);
+            return gate;
+        };
+
         for (const room of this.dungeonRooms) {
             const x = Math.floor(room.x + room.width / 2);
             const y = room.y;
-            if (y - 1 >= 0 && this.denseMatrix[y - 1][x] == TileType.WALL) {
-                this.denseMatrix[y - 1][x] = TileType.DOOR;
-            } else if (y + room.height < this.height && this.denseMatrix[y + room.height][x] == TileType.WALL) {
-                this.denseMatrix[y + room.height][x] = TileType.DOOR;
+            if (y - 1 >= 0 && this.denseMatrix[y - 1][x] === TileType.WALL) {
+                addDoor(x, y - 1);
+            } else if (y + room.height < this.height && this.denseMatrix[y + room.height][x] === TileType.WALL) {
+                addDoor(x, y + room.height);
             }
         }
-    }
 
-    async spawnPlayer() {
-        if (this.dungeonRooms.length === 0) {
-            console.warn("ERROR: attempted to spawn player with no rooms in dungeon!");
-            return;
+        // Generated layouts normally provide several room-wall gates. Keep a
+        // bounded fallback so a valid dungeon can never be created without an
+        // exit if a future room-generation change produces no normal gate.
+        if (gates.length === 0) {
+            const directions = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+            let fallback = null;
+            for (let y = 1; y < this.height - 1 && !fallback; y++) {
+                for (let x = 1; x < this.width - 1; x++) {
+                    if (this.denseMatrix[y][x] !== TileType.WALL) continue;
+                    if (directions.some(([dx, dy]) =>
+                        this.denseMatrix[y + dy]?.[x + dx] === TileType.FLOOR
+                    )) {
+                        fallback = { x, y };
+                        break;
+                    }
+                }
+            }
+
+            if (!fallback) {
+                for (let y = 1; y < this.height - 1 && !fallback; y++) {
+                    for (let x = 1; x < this.width - 1; x++) {
+                        if (this.denseMatrix[y][x] === TileType.FLOOR) {
+                            fallback = { x, y };
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (fallback) addDoor(fallback.x, fallback.y);
         }
 
-        // pull out a random room
-        const roomIndex = this.randInt(0, this.dungeonRooms.length - 1);
-        const room = this.dungeonRooms[roomIndex];
+        if (gates.length === 0) {
+            throw new Error("Unable to place an overworld exit in the dungeon");
+        }
 
-        const px = this.randInt(room.x + 1, room.x + room.width - 2);
-        const pz = this.randInt(room.y + 1, room.y + room.height - 2)
-
-        const player = new Player(px, pz);
-        this.entities.push(player); // just push them on the sparse matrix
+        const exitGate = gates[this.randInt(0, gates.length - 1)];
+        exitGate.setDestination("overworld");
+        this.overworldExit = exitGate;
     }
 
     placePlayer(player) {
-        const room = this.dungeonRooms[this.randInt(0, this.dungeonRooms.length - 1)];
-        const px = this.randInt(room.x + 1, room.x + room.width - 2);
-        const py = this.randInt(room.y + 1, room.y + room.height - 2);
+        const directions = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+        const reachable = [];
+        const visited = new Set();
+        const queue = [];
+        const exit = this.overworldExit;
+        const enqueue = (x, y) => {
+            const key = `${x},${y}`;
+            if (visited.has(key) || !this.isWalkableAt(x, y)) return;
+            visited.add(key);
+            queue.push({ x, y });
+        };
 
-        player.coords.set(px, py);
+        if (exit) {
+            for (const [dx, dy] of directions) {
+                enqueue(exit.coords.x + dx, exit.coords.y + dy);
+            }
+        }
+
+        if (queue.length === 0) {
+            for (let y = 0; y < this.height && queue.length === 0; y++) {
+                for (let x = 0; x < this.width; x++) {
+                    if (!this.isWalkableAt(x, y)) continue;
+                    enqueue(x, y);
+                    break;
+                }
+            }
+        }
+
+        for (let index = 0; index < queue.length; index++) {
+            const position = queue[index];
+            reachable.push(position);
+
+            for (const [dx, dy] of directions) {
+                enqueue(position.x + dx, position.y + dy);
+            }
+        }
+
+        const occupied = new Set(
+            this.entities.map((entity) => `${entity.coords.x},${entity.coords.y}`)
+        );
+        const openTiles = reachable.filter(({ x, y }) =>
+            !occupied.has(`${x},${y}`)
+        );
+        const roomTiles = openTiles.filter(({ x, y }) =>
+            this.isInsideAnyRoom(x, y)
+        );
+        const candidates = roomTiles.length > 0 ? roomTiles : openTiles;
+        if (candidates.length === 0) {
+            throw new Error("Unable to place the player near the dungeon exit");
+        }
+
+        const spawn = candidates[this.randInt(0, candidates.length - 1)];
+        player.coords.set(spawn.x, spawn.y);
         player.path = [];
         player._targetWorldPos = null;
-
-        player.updatePosition(this);
     }
 
     spawnEnemies() {
@@ -366,54 +407,76 @@ export class Dungeon {
 
     spawnLoot() {
         let chance = 1.0;
-        let anySpawned = false; 
+        const occupied = new Set(
+            this.entities.map((entity) => `${entity.coords.x},${entity.coords.y}`)
+        );
 
         const randomFloorInRoom = room => {
-            let x, y;
-            
-            do {
-                x = this.randInt(room.x, room.x + room.width - 1);
-                y = this.randInt(room.y, room.y + room.height - 1);
-            } while (this.denseMatrix[y][x] !== TileType.FLOOR);
-            return { x, y };
+            const available = [];
+            for (let y = room.y; y < room.y + room.height; y++) {
+                for (let x = room.x; x < room.x + room.width; x++) {
+                    if (
+                        this.denseMatrix[y]?.[x] === TileType.FLOOR &&
+                        !occupied.has(`${x},${y}`)
+                    ) {
+                        available.push({ x, y });
+                    }
+                }
+            }
+
+            if (available.length === 0) return null;
+            const location = available[this.randInt(0, available.length - 1)];
+            occupied.add(`${location.x},${location.y}`);
+            return location;
         };
 
         for (const room of this.dungeonRooms) {
             if (Math.random() < chance) {
-                const { x, y } = randomFloorInRoom(room);
+                const location = randomFloorInRoom(room);
+                if (location) {
+                    const count = this.randInt(1, 3);
+                    const contents = generateLoot(count);
 
-                const count = this.randInt(0, 3);
-                const contents = generateLoot(count);
-                
-                this.entities.push(
-                    new StorageItem("Barrel", x, y, contents)
-                );
-                anySpawned = true;
+                    this.entities.push(
+                        new StorageItem(
+                            "Barrel",
+                            location.x,
+                            location.y,
+                            contents,
+                            { scale: this.tileSize }
+                        )
+                    );
+                }
             }
             chance *= 0.25;
         }
 
-         // If player gets bad RNG force a spawn for at least one loot barrel
+         // Always include one guaranteed loot barrel in addition to random spawns.
          if (this.dungeonRooms.length) {
-            const fallbackRoom = this.dungeonRooms[
-                this.randInt(0, this.dungeonRooms.length - 1)
-            ]
+            const roomOffset = this.randInt(0, this.dungeonRooms.length - 1);
+            for (let i = 0; i < this.dungeonRooms.length; i++) {
+                const room = this.dungeonRooms[
+                    (roomOffset + i) % this.dungeonRooms.length
+                ];
+                const location = randomFloorInRoom(room);
+                if (!location) continue;
 
-            const { x, y } = randomFloorInRoom(fallbackRoom);
-            const numItems = this.randInt(1, 3);
-            const contents = generateLoot(numItems);
-            
-
-            this.entities.push(
-                new StorageItem("Barrel", x, y, contents)
-            );
+                const numItems = this.randInt(1, 3);
+                const contents = generateLoot(numItems);
+                this.entities.push(
+                    new StorageItem(
+                        "Barrel",
+                        location.x,
+                        location.y,
+                        contents,
+                        { scale: this.tileSize }
+                    )
+                );
+                break;
+            }
          }
     }
 
-
-    get player() {
-        return this.entities.find(obj => obj instanceof Player); // This should go by ID at some point rather than inst of
-    }
 
    gridToWorld(x, y) {
     return new THREE.Vector3(
@@ -431,31 +494,12 @@ export class Dungeon {
         return { x: gx, y: gy };
     }
 
-    pickWorldPoint(raycaster) {
-        const out = new THREE.Vector3();
-        if (!raycaster.ray.intersectPlane(this.groundPlane, out)) return null;
-        return out;
-    }
-
-    pickEntity(raycaster) {
-        let best = null;
-        let bestDist = Infinity;
-        const tmp = new THREE.Vector3();
-
-        for (const obj of this.entities) {
-            if (!obj.model) continue;
-            obj._recomputeBox();
-            if (raycaster.ray.intersectBox(obj.hitbox, tmp)) {
-            const d = raycaster.ray.origin.distanceTo(tmp);
-            if (d < bestDist) { bestDist = d; best = obj; }
-        }
-        }
-        return best;
-    }
-
     removeEntity(entity) {
         const idx = this.entities.indexOf(entity);
-        if (idx >= 0) this.entities.splice(idx, 1);
+        if (idx < 0) return false;
+        entity.cancelVisuals?.();
+        this.entities.splice(idx, 1);
+        return true;
     }
 
     isWalkableAt(x, y) {
@@ -468,97 +512,24 @@ export class Dungeon {
             case TileType.DIRT:
             case TileType.PEBBLE_DIRT:
             case TileType.ROCK_DIRT:
+            case TileType.DOOR:
             return false;
             default:
             return true;
     }
 }
 
-
-    /*
-        TODO: Remove pools, make it another tile structure.
-    */
-    spawnPools(spawnChance = 0.0) {
-        this.pools = [];
-
-        for (const room of this.dungeonRooms) {
-            if (room.width < 4 || room.height < 4) continue;
-
-            if (Math.random() >= spawnChance) continue;
-
-            const poolX = this.randInt(room.x, room.x + room.width - 2);    // will have to adjust this later if we do not stick to just 2x2
-            const poolY = this.randInt(room.y, room.y + room.height - 2);
-
-            for (let dy = 0; dy < 2; dy++) {
-                for (let dx = 0; dx < 2; dx++) {
-                    this.denseMatrix[poolY + dy][poolX + dx] = TileType.WATER;
-                }
-            }
-
-            const pool = new Pool(poolX, poolY, 2, 2);
-            this.pools.push(pool);
-            this.addStatus("You notice a strange body of water...");
-        }
-
+    blocksInteractionAt(x, y) {
+        const tile = this.denseMatrix[y]?.[x];
+        return tile === TileType.WALL ||
+            tile === TileType.DIRT ||
+            tile === TileType.PEBBLE_DIRT ||
+            tile === TileType.ROCK_DIRT;
     }
 
-    getPoolAt(tileX, tileY) {
-        return this.pools.find(pool => {
-            tileX >= pool.x &&
-            tileX < pool.x + pool.width && 
-            tileY >= pool.y && 
-            tileY < pool.y + pool.height
-        });
-    }
 
 getActionsAt({ gridX, gridY, entity }) {
   const actions = [];
-
-  if (entity?.kind === "Storage") {
-    actions.push({
-      label: `Search ${entity.id}`,
-      run: async (game) => {
-        await game.player.moveToAsync(entity.coords, this);
-        game.ui.openStorageModal(entity);
-      },
-    });
-  }
-
-  if (entity?.kind === "DroppedItem") {
-    actions.push({
-      label: `Pick up ${entity.item?.name ?? entity.id}`,
-      run: async (game) => {
-        await game.player.moveToAsync(entity.coords, this);
-        if (entity.item) {
-          game.player.addItem(entity.item, entity.item.quantity ?? 1);
-          game.ui.renderInventory(game.player.inventory);
-        }
-        this.removeEntity(entity);
-        game.currentMapGroup?.remove(entity.model);
-      },
-    });
-  }
-
-  if (entity?.kind === "Enemy") {
-    actions.push({
-      label: `Attack ${entity.name ?? "enemy"}`,
-      run: async (game) => {
-        await game.player.approachAndFight(entity, this, game.combatMgr);
-      },
-    });
-  }
-
-  const tile = this.denseMatrix[gridY]?.[gridX];
-
-  if (tile === TileType.DOOR) {
-    actions.push({
-      label: "Open door",
-      run: async (game) => {
-        await game.player.moveToAsync(new THREE.Vector2(gridX, gridY), this);
-        await game.enterDungeon({ regenerate: true });
-      },
-    });
-  }
 
   if (this.isWalkableAt(gridX, gridY)) {
     actions.push({
@@ -572,255 +543,40 @@ getActionsAt({ gridX, gridY, entity }) {
   return actions;
 }
 
-    updateTick(game, tickSeconds) {
+    updateTick(game) {
         const player = game.player;
         if (!player) return;
 
-        const lootDropChance = 0.5;
-
-        if (player.combat?.hp <= 0) {
-            for (const e of this.entities) {
-                if (!(e instanceof Enemy)) continue;
-                e.inCombat = false;
-                game.combatMgr?.disengage(e.combat);
-            }
-            return;
-        }
-
+        clearLegacyCombatState(game.combatMgr, this.entities);
         game.ui?.setHealth?.(player.combat.hp);
         player.skills?.updateUI?.();
 
-        const combatMgr = game.combatMgr;
-        if (!combatMgr) {
-            console.warn("ERROR: could net find the state of the combat manager");
-            return;
-        }
-
-        const enemies = this.entities.filter((entity) => entity instanceof Enemy);
-        const keyFrom = (coords) => `${coords.x},${coords.y}`;
-        const dirs = [
-            [1, 0],
-            [-1, 0],
-            [0, 1],
-            [0, -1],
-        ];
-
-        const isWalkableTile = (tile) =>
-            tile !== TileType.WALL &&
-            tile !== TileType.WATER &&
-            tile !== TileType.DIRT &&
-            tile !== TileType.PEBBLE_DIRT &&
-            tile !== TileType.ROCK_DIRT;
-
-        const distanceFields = new Map();
-        const buildDistanceField = (targetCoords) => {
-            const rows = this.denseMatrix.length;
-            const cols = this.denseMatrix[0]?.length ?? 0;
-            const dist = Array.from({ length: rows }, () => Array(cols).fill(Infinity));
-
-            if (
-                targetCoords.x < 0 || targetCoords.y < 0 ||
-                targetCoords.x >= cols || targetCoords.y >= rows
-            ) {
-                return dist;
-            }
-
-            const queue = [];
-            dist[targetCoords.y][targetCoords.x] = 0;
-            queue.push([targetCoords.x, targetCoords.y]);
-
-            let qi = 0;
-            while (qi < queue.length) {
-                const [cx, cy] = queue[qi++];
-                const base = dist[cy][cx];
-
-                for (const [dx, dy] of dirs) {
-                    const nx = cx + dx;
-                    const ny = cy + dy;
-                    if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
-                    if (!isWalkableTile(this.denseMatrix[ny][nx])) continue;
-                    if (dist[ny][nx] <= base + 1) continue;
-                    dist[ny][nx] = base + 1;
-                    queue.push([nx, ny]);
-                }
-            }
-
-            return dist;
-        };
-
-        const getDistanceField = (targetCoords) => {
-            const key = keyFrom(targetCoords);
-            if (!distanceFields.has(key)) {
-                distanceFields.set(key, buildDistanceField(targetCoords));
-            }
-            return distanceFields.get(key);
-        };
-
-        const pickStepFromField = (enemy, field, occupied) => {
-            const current = field[enemy.coords.y]?.[enemy.coords.x];
-            if (!Number.isFinite(current) || current <= 1) return null;
-
-            let best = null;
-            let bestDist = current;
-
-            for (const [dx, dy] of dirs) {
-                const nx = enemy.coords.x + dx;
-                const ny = enemy.coords.y + dy;
-                const candDist = field[ny]?.[nx];
-                if (!Number.isFinite(candDist)) continue;
-                if (candDist < 1) continue;
-                if (candDist >= bestDist) continue;
-
-                const candKey = `${nx},${ny}`;
-                if (occupied.has(candKey)) continue;
-                if (!isWalkableTile(this.denseMatrix[ny][nx])) continue;
-
-                bestDist = candDist;
-                best = new THREE.Vector2(nx, ny);
-            }
-
-            return best;
-        };
-
-        const occupied = new Set(
-            enemies
-                .filter((enemy) => !enemy._isDying && !enemy.readyToRemove)
-                .map((enemy) => keyFrom(enemy.coords))
-        );
-
-        const isAliveEnemy = (enemy) => !enemy._isDying && !enemy.readyToRemove;
-        const pickHostileTarget = (enemy) => {
-            let playerDist = Infinity;
-            if (player?.combat?.hp > 0) {
-                playerDist = Math.abs(enemy.coords.x - player.coords.x) + Math.abs(enemy.coords.y - player.coords.y);
-            }
-
-            let bestEnemy = null;
-            let bestEnemyDist = Infinity;
-
-            for (const other of enemies) {
-                if (other === enemy) continue;
-                if (!isAliveEnemy(other)) continue;
-                if (other.faction && enemy.faction && other.faction === enemy.faction) continue;
-                const dist = Math.abs(enemy.coords.x - other.coords.x) + Math.abs(enemy.coords.y - other.coords.y);
-                if (dist < bestEnemyDist) {
-                    bestEnemy = other;
-                    bestEnemyDist = dist;
-                }
-            }
-
-            const playerInRange = playerDist <= enemy.agroRange;
-            const enemyInRange = bestEnemyDist <= enemy.agroRange;
-
-            if (playerInRange) {
-                if (enemyInRange && bestEnemyDist < playerDist) return bestEnemy;
-                return player;
-            }
-
-            if (enemyInRange) return bestEnemy;
-            return null;
-        };
-
-        for (const e of enemies) {
-            if (!isAliveEnemy(e)) continue;
-
-            const target = pickHostileTarget(e);
-            let nextStep = null;
-
-            if (target) {
-                if (target === player) {
-                    e.think(player.coords, this.denseMatrix, this, occupied);
-                    nextStep = e.path?.[0] ?? null;
-                } else {
-                    const field = getDistanceField(target.coords);
-                    nextStep = pickStepFromField(e, field, occupied);
-                    if (nextStep) {
-                        e.path = [nextStep];
-                        e._advanceTarget?.(this);
-                        e._setAction?.("walk");
-                    } else {
-                        e.path = [];
-                        e._targetWorldPos = null;
-                        e._setAction?.("idle");
-                    }
-                }
-            } else {
-                e.think(player.coords, this.denseMatrix, this, occupied);
-                nextStep = e.path?.[0] ?? null;
-            }
-
-            if (nextStep) {
-                if (e._lastCoords && nextStep.equals(e._lastCoords)) {
-                    const detour = e._idleStepFrom?.(e.coords, this.denseMatrix, occupied) ?? e.coords;
-                    if (!detour.equals(e.coords)) {
-                        e.path = [detour];
-                        e._advanceTarget?.(this);
-                        e._setAction?.("walk");
-                        nextStep = detour;
-                    } else {
-                        e.path = [];
-                        e._targetWorldPos = null;
-                        e._setAction?.("idle");
-                        nextStep = null;
-                    }
-                }
-
-                if (nextStep) {
-                    const nextKey = keyFrom(nextStep);
-                    if (!occupied.has(nextKey)) {
-                        occupied.delete(keyFrom(e.coords));
-                        occupied.add(nextKey);
-                    }
-                }
-            }
-
-            const dist = target
-                ? Math.abs(e.coords.x - target.coords.x) + Math.abs(e.coords.y - target.coords.y)
-                : Infinity;
-
-            if (target && dist === 1) {
-                if (!e.inCombat || e.combatTarget !== target) {
-                    combatMgr.engage(e.combat, target.combat);
-                }
-                e.inCombat = true;
-                e.combatTarget = target;
-            } else {
-                if (e.inCombat) {
-                    combatMgr.disengage(e.combat);
-                }
-                e.inCombat = false;
-                e.combatTarget = null;
-            }
-        }
-
+        // Combat no longer advances on ticks, but completed death animations
+        // still need their normal removal and loot-drop lifecycle.
         for (let i = this.entities.length - 1; i >= 0; i--) {
-            const obj = this.entities[i];
-            if (obj instanceof Enemy && obj.readyToRemove) {
-                if (Math.random() < lootDropChance) {
-                    spawnDroppedItem(
-                        obj.coords.x,
-                        obj.coords.y,
-                        this.entities,
-                        game.currentMapGroup,
-                        this
-                    );
-                }
-                game.currentMapGroup?.remove(obj.model);
+            const entity = this.entities[i];
+            if (!(entity instanceof Enemy) || !entity.readyToRemove) continue;
 
-                this.entities.splice(i, 1);
+            if (Math.random() < 0.5) {
+                spawnDroppedItem(
+                    entity.coords.x,
+                    entity.coords.y,
+                    this.entities,
+                    game.currentMapGroup,
+                    this
+                );
             }
+            game.currentMapGroup?.remove(entity.model);
+            this.entities.splice(i, 1);
         }
-
     }
-
-
-
 
     async generateDungeon(player = null) {
         this.denseMatrix = this.createEmptyMatrix();
         this.theme = (Math.random() < 0.25 ? 'arena' : 'default'); // should make this generally happen only at one point
-        //this.entities = [];
+        this.entities = [];
         this.dungeonRooms = [];
+        this.overworldExit = null;
 
         this.generateRooms();
         this.fillDungeonWithDirt();
@@ -828,11 +584,9 @@ getActionsAt({ gridX, gridY, entity }) {
         this.carveRooms();
         this.connectRooms();
         this.placeDoors();
-
-        this.placePlayer(player);
-
         this.spawnLoot();
-
         this.spawnEnemies();
+
+        if (player) this.placePlayer(player);
     }
 }

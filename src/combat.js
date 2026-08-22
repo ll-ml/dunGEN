@@ -1,4 +1,4 @@
-import { showDamage } from './damageDisplay';
+import { showDamage } from './damageDisplay.js';
 
 export class Combatant {
   constructor(id, maxHp, attack, defence = 0, hitChance = 0.75) {
@@ -7,7 +7,7 @@ export class Combatant {
     this.attackPower = attack;
     this.defence     = defence;
     this.hitChance   = hitChance;
-    this.owner       = null;        // set to the DungeonObject
+    this.owner       = null;        // set to the owning player or enemy entity
     this.onAttack    = null;
     this.onDie       = null;
   }

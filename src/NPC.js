@@ -1,10 +1,11 @@
 import * as THREE from "three";
-import { OverworldEntity } from "./overworldEntity.js";
+import { GridEntity } from "./gridEntity.js";
+import { InteractionComponent } from "./components/interactionComponent.js";
 import { TILE_SIZE } from "./types.js";
 
 const DEFAULT_MODEL = "./public/character-soldier.glb";
 
-export class NPC extends OverworldEntity {
+export class NPC extends GridEntity {
   constructor(gridX, gridY, opts = {}) {
     super(DEFAULT_MODEL, gridX, gridY, {
       scale: opts.scale ?? TILE_SIZE,
@@ -19,6 +20,13 @@ export class NPC extends OverworldEntity {
     this.moveSpeed = opts.moveSpeed ?? TILE_SIZE * 1.4;
     this._map = null;
     this._paused = false;
+
+    this.addComponent(new InteractionComponent({
+      id: "talk",
+      label: ({ entity }) => `Talk to ${entity.id}`,
+      rangeTiles: 1.5,
+      execute: ({ game, entity }) => game?.ui?.openNpcDialog?.(entity),
+    }));
 
     this.mixer = null;
     this.actions = {};
@@ -134,11 +142,11 @@ export class NPC extends OverworldEntity {
 
   pause() {
     this._paused = true;
-    this.path = [];
-    this._targetWorldPos = null;
+    this._setAction("idle");
   }
 
   resume() {
     this._paused = false;
+    if (this._targetWorldPos) this._setAction("walk");
   }
 }

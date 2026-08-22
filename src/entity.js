@@ -9,8 +9,7 @@ export class Entity {
     this.coords = new THREE.Vector2(gridX, gridY);
 
     this.model = null;
-    this.hitbox = new THREE.Box3();
-    this.helper = new THREE.Box3Helper(this.hitbox, 0xff0000);
+    this.interaction = null;
 
     this._components = [];
   }
@@ -38,21 +37,15 @@ export class Entity {
     }
   }
 
-  _recomputeBox() {
-    if (!this.model) return;
+  updateVisual(deltaSeconds) {
+    for (const component of this._components) {
+      component.updateVisual?.(deltaSeconds);
+    }
+  }
 
-    this.model.updateWorldMatrix(true, false);
-    this.hitbox.makeEmpty();
-    this.model.traverse((o) => {
-      if (!o.isMesh) return;
-
-      if (!o.geometry.boundingBox) {
-        o.geometry.computeBoundingBox();
-      }
-
-      const mb = o.geometry.boundingBox.clone();
-      mb.applyMatrix4(o.matrixWorld);
-      this.hitbox.union(mb);
-    });
+  cancelVisuals() {
+    for (const component of this._components) {
+      component.cancel?.();
+    }
   }
 }

@@ -16,11 +16,6 @@ export class Skill {
       this.xp -= this.xpForNextLevel();
       this.level++;
       this._justLeveled = true;
-      if (this._dungeon) {
-        this._dungeon.addStatus(
-          `${this.name} advanced to level ${this.level}!`
-        );
-      }
     }
     return this;
   }
@@ -30,7 +25,6 @@ export class SkillManager {
   constructor() {
     this.skills  = {};
     this._slots  = {};
-    this._dungeon = null;
 
     document
       .querySelectorAll("#skillsBar .skill")
@@ -40,13 +34,6 @@ export class SkillManager {
         this.skills[name] = new Skill(name);
         this._slots[name] = el;
       });
-  }
-
-  initDungeon(dungeon) {
-    this._dungeon = dungeon;
-    Object.values(this.skills).forEach(skill => {
-      skill._dungeon = dungeon;
-    });
   }
 
   gainXp(skillName, amount = 1) {

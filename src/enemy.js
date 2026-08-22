@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 import { TileType } from './types.js';
-import { DungeonEntity } from "./dungeonEntity.js";
+import { GridEntity } from "./gridEntity.js";
 import { Combatant } from './combat.js';
 import { PriorityQueue } from './pq.js'
 
 const TILE_SIZE = 11;
 
-export class Enemy extends DungeonEntity {
+export class Enemy extends GridEntity {
   constructor(glbPath, id, hp, x, y, atk, agroRange = 10, opts = {}) {
     const { colormap = null, scale = TILE_SIZE, height = 0.0, faction = "neutral" } = opts;
     const glbModelPath = glbPath;
@@ -20,8 +20,6 @@ export class Enemy extends DungeonEntity {
 
     this.kind = "Enemy";
     this.id = id;
-    this.hp = hp; 
-    this.attackPower = atk;
     this.agroRange = agroRange; // This should do more
     this.faction = faction;
     this.combatTarget = null;
@@ -40,7 +38,6 @@ export class Enemy extends DungeonEntity {
 
     this.path = [];
     this._targetWorldPos = null;
-    this._lastCoords = this.coords.clone();
     this.idleSpeed = TILE_SIZE * 0.75;
     this.chaseSpeed = TILE_SIZE * 2
     this.moveSpeed = this.idleSpeed; // slower then the player
@@ -218,7 +215,6 @@ export class Enemy extends DungeonEntity {
     if (dist <= step) {
       this.model.position.copy(this._targetWorldPos);
       const reached = this.path.shift();
-      this._lastCoords.copy(this.coords);
       this.coords.set(reached.x, reached.y);
       this.updatePosition(map ?? this._map);
       this._advanceTarget(map ?? this._map);
@@ -240,11 +236,6 @@ export class Enemy extends DungeonEntity {
       next.reset().fadeIn(0.2).play();
       this.currentAction = next;
     }
-  }
-
-  move(updatedPos) {
-    this.coords.copy(updatedPos);
-    this.updateMeshPosition();
   }
 
   /**
@@ -342,33 +333,8 @@ export class Enemy extends DungeonEntity {
     return step;
   }
 
-  idle(tiles) {
-    const rows = tiles.length;
-    const cols = tiles[0].length;
-    const directions = [
-      new THREE.Vector2(1, 0),
-      new THREE.Vector2(-1, 0),
-      new THREE.Vector2(0, 1),
-      new THREE.Vector2(0, -1)
-    ];
-    
-    let tries = 4;
-    while (tries-- > 0) {
-      const idx = Math.floor(Math.random() * directions.length);
-      const nextPos = this.coords.clone().add(directions[idx]);
-      if (nextPos.x < 0 || nextPos.y < 0 || nextPos.x >= cols || nextPos.y >= rows) {
-        continue;
-      }
-      if (!this.canWalk(tiles[nextPos.y][nextPos.x])) {
-        continue;
-      }
-      return nextPos;
-    }
-    return this.coords.clone(); // return null more effiecnt here?
-  }
-
   canWalk(tile) {
-    return tile !== TileType.WALL && tile !== TileType.WATER && tile !== TileType.DIRT && tile !== TileType.PEBBLE_DIRT && tile !== TileType.ROCK_DIRT;
+    return tile !== TileType.WALL && tile !== TileType.WATER && tile !== TileType.DIRT && tile !== TileType.PEBBLE_DIRT && tile !== TileType.ROCK_DIRT && tile !== TileType.DOOR;
   }
 
   die() {

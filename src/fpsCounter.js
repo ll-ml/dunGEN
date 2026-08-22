@@ -4,8 +4,14 @@ export class FrameCounter {
      * @param {number} options.interval How often (ms) to recalc FPS (default 500)
      * @param {string} options.position CSS position
      * @param {{[key: string]: string}} options.style Extra CSS rules for the display element
+     * @param {HTMLElement} options.parent Element that owns the FPS display
      */
-    constructor({ interval = 500, position = 'fixed', style = {} } = {}) {
+    constructor({
+      interval = 500,
+      position = 'fixed',
+      style = {},
+      parent = document.body,
+    } = {}) {
       this.interval = interval;
       this.lastTime = performance.now();
       this.frameCount = 0;
@@ -25,7 +31,7 @@ export class FrameCounter {
         zIndex: '1000',
         ...style,
       });
-      document.body.appendChild(this.el);
+      parent.appendChild(this.el);
     }
 
     update() {
@@ -38,5 +44,9 @@ export class FrameCounter {
         this.frameCount = 0;
         this.lastTime = now;
       }
+    }
+
+    dispose() {
+      this.el.remove();
     }
   }

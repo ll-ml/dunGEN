@@ -38,6 +38,15 @@ export class InventoryItem {
   }
 }
 
+export function cloneInventoryItem(item) {
+  if (!item || typeof item !== "object") return item;
+
+  return Object.create(
+    Object.getPrototypeOf(item),
+    Object.getOwnPropertyDescriptors(item)
+  );
+}
+
 export function renderInventory(items) {
     const slots = document.querySelectorAll('#inventoryItems .slot');
     slots.forEach((slot, idx) => {
@@ -63,7 +72,7 @@ export function renderInventory(items) {
         const quantityDisplay = document.createElement('div');
         quantityDisplay.className = 'item-quantity';
         quantityDisplay.textContent = item.quantity;
-        slot.append(quantityDisplay);
+        slot.appendChild(quantityDisplay);
       }
     });
 }
@@ -86,11 +95,10 @@ export function showCtxMenu(items, x, y) {
 }
 
 export function setupInventoryContext({ player, getMap, getScene, ui }) {
-  renderInventory(player.inventory);
-
   const slots = document.querySelectorAll("#inventoryItems .slot");
+  const bindings = [];
   slots.forEach((slot, idx) => {
-    slot.oncontextmenu = (e) => {
+    const onContextMenu = (e) => {
       e.preventDefault();
       const map = getMap?.();
       const scene = getScene?.();
@@ -126,12 +134,15 @@ export function setupInventoryContext({ player, getMap, getScene, ui }) {
             const glbPath = item.glbPath ||
               item.imagePath.substring(0, item.imagePath.lastIndexOf(".")) +
               ".glb";
+            const droppedInventoryItem = cloneInventoryItem(item);
+            droppedInventoryItem.quantity = 1;
             const itemModel = new DroppedItem(
               item.id,
               player.coords.x,
               player.coords.y,
               glbPath,
-              item
+              droppedInventoryItem,
+              { tileSize: map.tileSize }
             );
             map.entities?.push(itemModel);
             itemModel
@@ -150,5 +161,22 @@ export function setupInventoryContext({ player, getMap, getScene, ui }) {
 
       showCtxMenu(actions, e.pageX, e.pageY);
     };
+    slot.oncontextmenu = onContextMenu;
+    bindings.push({ slot, onContextMenu });
   });
+
+  const hideOnOutsideClick = (event) => {
+    const menu = document.getElementById("ctxMenu");
+    if (menu && !menu.contains(event.target)) menu.style.display = "none";
+  };
+  window.addEventListener("click", hideOnOutsideClick);
+
+  return () => {
+    window.removeEventListener("click", hideOnOutsideClick);
+    for (const { slot, onContextMenu } of bindings) {
+      if (slot.oncontextmenu === onContextMenu) slot.oncontextmenu = null;
+    }
+    const menu = document.getElementById("ctxMenu");
+    if (menu) menu.style.display = "none";
+  };
 }

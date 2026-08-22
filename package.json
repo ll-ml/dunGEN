@@ -1,10 +1,12 @@
 {
   "name": "dungen",
   "version": "0.2.4",
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test"
   },
   "devDependencies": {
     "vite": "^5.x.x"

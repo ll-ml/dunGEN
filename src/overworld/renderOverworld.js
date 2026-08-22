@@ -102,8 +102,6 @@ export function buildOverworld(parent, modelMap, glyphGrid, TILE_SIZE) {
       m.frustumCulled = false; 
       parent.add(m);
     });
-
-    inst.water.forEach((m) => parent.add(m));
   }
 
   if (sandCount > 0 && modelMap[GLYPH_SAND]) {

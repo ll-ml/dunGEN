@@ -31,10 +31,5 @@ export class GridPlacement {
       entity.model.position.set(wx, height, wz);
     }
 
-    entity._recomputeBox();
-    if (entity.helper) {
-      entity.helper.box.copy(entity.hitbox);
-      entity.helper.updateMatrixWorld(true);
-    }
   }
 }

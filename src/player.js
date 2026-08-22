@@ -1,12 +1,12 @@
 import * as THREE from 'three';
-import { DungeonEntity } from "./dungeonEntity.js";
-import { TileType } from './types.js';
+import { GridEntity } from "./gridEntity.js";
 import { Combatant } from './combat.js';
 import { SkillManager } from "./skills.js";
+import { cloneInventoryItem } from "./inventory.js";
 
 
 const TILE_SIZE =11;
-export class Player extends DungeonEntity {
+export class Player extends GridEntity {
    /**
    * @param {number} startX  grid‑column
    * @param {number} startZ  grid‑row
@@ -19,7 +19,6 @@ export class Player extends DungeonEntity {
         scale: TILE_SIZE
        }); // Load the player in. 
     this.path = [];
-    this.hp = hp;
 
     this.skills = new SkillManager();
     
@@ -28,11 +27,10 @@ export class Player extends DungeonEntity {
     this.moveSpeed = TILE_SIZE * 4;
     this.inventory = [];
     this.maxInvenotrySlots = 9;
-    this.onArrive = null;
 
     this.combat = new Combatant(
       this.id,
-      this.hp,
+      hp,
       10,
       2,
       0.8
@@ -163,93 +161,8 @@ export class Player extends DungeonEntity {
 }
 
 
-  tryMove(playerPos, tiles) {
-    const rows = tiles.length;
-    const cols = tiles[0].length;
-    const manhattanDist = Math.abs(this.coords.x - playerPos.x) + Math.abs(this.coords.y - playerPos.y);
-    
-    // If the player is too far, do nothing.
-    if (manhattanDist > this.agroRange) {
-      return this.coords.clone();
-    }
-    
-    const directions = [
-      new THREE.Vector2(1, 0),
-      new THREE.Vector2(-1, 0),
-      new THREE.Vector2(0, 1),
-      new THREE.Vector2(0, -1)
-    ];
-    
-    // Initialize distance and previous matrices.
-    const dist = Array.from({ length: rows }, () => Array(cols).fill(Infinity));
-    const prev = Array.from({ length: rows }, () => Array(cols).fill(null));
-    
-    // Simple priority queue implemented as an array.
-    // Each element is an object: { dist: number, pos: THREE.Vector2 }
-    let pq = [];
-    
-    const startX = this.coords.x;
-    const startY = this.coords.y;
-    dist[startY][startX] = 0;
-    pq.push({ dist: 0, pos: new THREE.Vector2(startX, startY) });
-    
-    let finalPos = null;
-    
-    while (pq.length > 0) {
-      // Sort by distance ascending.
-      pq.sort((a, b) => a.dist - b.dist);
-      const { dist: currentDist, pos: currentPos } = pq.shift();
-      
-      // If we are adjacent to the player, stop.
-      if (Math.abs(currentPos.x - playerPos.x) + Math.abs(currentPos.y - playerPos.y) === 1) {
-        finalPos = currentPos;
-        break;
-      }
-      
-      // Explore neighbors.
-      for (const dir of directions) {
-        const nextPos = new THREE.Vector2(currentPos.x + dir.x, currentPos.y + dir.y);
-        // Check bounds.
-        if (nextPos.x < 0 || nextPos.y < 0 || nextPos.x >= cols || nextPos.y >= rows) {
-          continue;
-        }
-        // Skip walls.
-        if (!this.canWalkDungeonTiles(tiles[nextPos.y][nextPos.x])) {
-          continue;
-        }
-        const newDist = currentDist + 1;
-        if (newDist < dist[nextPos.y][nextPos.x]) {
-          dist[nextPos.y][nextPos.x] = newDist;
-          prev[nextPos.y][nextPos.x] = currentPos;
-          pq.push({ dist: newDist, pos: nextPos });
-        }
-      }
-    }
-    
-    // If no adjacent tile was found, don't move.
-    if (!finalPos) {
-      return this.coords.clone();
-    }
-    
-    // Backtrack from finalPos until we reach our own coordinates.
-    let step = finalPos;
-    while (prev[step.y][step.x] && !prev[step.y][step.x].equals(this.coords)) {
-      step = prev[step.y][step.x];
-      // If there’s a broken link, stay put.
-      if (!step) {
-        return this.coords.clone();
-      }
-    }
-    
-    // next move towards the player.
-    return step;
-  }
-
   addItem(newItem, quantity = 1) {
-    const itemToAdd = Object.create(
-      Object.getPrototypeOf(newItem),
-      Object.getOwnPropertyDescriptors(newItem)
-    );
+    const itemToAdd = cloneInventoryItem(newItem);
 
     let remaining = quantity;
 
@@ -268,10 +181,7 @@ export class Player extends DungeonEntity {
     }
 
     while (remaining > 0 && this.inventory.length < this.maxInvenotrySlots) {
-      const newStack = Object.create(
-        Object.getPrototypeOf(itemToAdd),
-        Object.getOwnPropertyDescriptors(itemToAdd)
-      );
+      const newStack = cloneInventoryItem(itemToAdd);
 
       if (itemToAdd.stackable) {
         newStack.quantity = Math.min(remaining, itemToAdd.maxStackSize);
@@ -385,93 +295,23 @@ export class Player extends DungeonEntity {
     }
   }
 
-  updatePathStep() {
-    if (!this.path || this.path.length === 0) {
-      return // also play idle if need be
-    }
-
-    const nextTile = this.path.shift();
-
-    this.coords.set(nextTile.x, nextTile.y);
-    //this.updatePosition();
-    // playaction(walk)
-  }
-
-  /**
-   * Attempt to update the desired position based on input.
-   * @param {THREE.Vector2} directionVector - The move direction (e.g., (0, -1) for up).
-   * @param {Array<Array<any>>} denseMatrix - The dungeon grid.
-   */
-  setDesiredMove(directionVector, denseMatrix) {
-    const updatedPos = this.coords.clone().add(directionVector);
-    
-    if (
-      updatedPos.x < 0 ||
-      updatedPos.y < 0 ||
-      updatedPos.x >= denseMatrix[0].length ||
-      updatedPos.y >= denseMatrix.length
-    ) {
-      return; // Out of bounds, cancel movement.
-    }
-    
-    // Check collision: only move if the tile is walkable.
-    if (!this.canWalkDungeonTiles(denseMatrix[updatedPos.y][updatedPos.x])) {
-      return;
-    }
-    
-    this.desiredPosition.copy(updatedPos);
-  }
-
-  applyMove() {
-    this.coords.copy(this.desiredPosition);
-    this.updateMeshPosition();
-  }
-
   die() {
     this.isDead = true;
     this._playAction('die');
   }
 
   interact() {
+    const interact = this.actions.interact;
+    if (!interact || this.currentAction === interact) return;
+
     this._playAction('interact');
-    setTimeout(() => this._playAction('idle'), 500);
+
+    const onFinish = (event) => {
+      if (event.action !== interact) return;
+      this.mixer.removeEventListener('finished', onFinish);
+      this._playAction('idle');
+    };
+    this.mixer.addEventListener('finished', onFinish);
   }
 
-  async approachAndFight(enemy, map, combatMgr) {
-    const tiles = map?.denseMatrix ?? map;
-    if (!enemy?.coords || !tiles) return;
-
-    let guard = 0;
-    while (guard++ < 100) {
-      const dist = this.coords.manhattanDistanceTo(enemy.coords);
-
-      if (dist === 1) {
-        if (map?.gridToWorld && this.model) {
-          const world = map.gridToWorld(enemy.coords.x, enemy.coords.y);
-          this.model.lookAt(world.x, this.model.position.y, world.z);
-        }
-        combatMgr?.engage?.(this.combat, enemy.combat);
-        return;
-      }
-
-      const nextStep = this.tryMove(enemy.coords, tiles);
-      if (!nextStep || nextStep.equals(this.coords)) return;
-
-      await this.moveToAsync(nextStep, map);
-    }
-  }
-
-  // name change to account for overworld also existing now
-  canWalkDungeonTiles(tile) {
-    switch (tile) {
-      case TileType.WALL:
-      case TileType.WATER:
-      case TileType.DIRT:
-      case TileType.PEBBLE_DIRT:
-      case TileType.ROCK_DIRT:
-        return false;
-      default:
-          return true;
-    }
-  }
 }

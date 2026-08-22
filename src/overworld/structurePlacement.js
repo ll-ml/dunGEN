@@ -1,4 +1,4 @@
-import { OverworldEntity } from "../overworldEntity.js";
+import { GridEntity } from "../gridEntity.js";
 
 /*
 Wiring note:
@@ -191,7 +191,7 @@ export function placeStructure(overworld, blueprint, anchor, {
       const local = transformPoint(prop, transform);
       const world = addAnchor(anchor, local);
 
-      const ent = new OverworldEntity(prop.modelPath, world.x, world.y, {
+      const ent = new GridEntity(prop.modelPath, world.x, world.y, {
         scale: prop.scale,
         height: prop.height,
         colormap: prop.colormap ?? null,
